@@ -1,0 +1,17 @@
+.idea/
+*.iml
+.vscode/
+target/
+*.class
+*.log
+node_modules/
+.DS_Store
+*.iml
+.idea/
+.vscode/
+settings.json
+*.log
+*.lock
+*.tmp
+.DS_Store
+Thumbs.db
