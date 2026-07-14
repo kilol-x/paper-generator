@@ -13,9 +13,9 @@
 
 % 修订记录
 \begin{revrecord}
-V1.0 & 2026-07-11 & 张三 & 李四 & 初稿完成，完成系统总体架构、模块、接口、数据结构概要设计梳理 \\
+V1.0 & 2026-07-15 & 郑羽婷 & 陆思雨 & 初稿完成，完成系统总体架构、模块、接口、数据结构概要设计梳理 \\
 \hline
-V1.1 & 2026-07-12 & 张三 & 王五 & 补充判题流程、异常出错处理、安全与维护相关设计内容 \\
+V1.1 & 2026-07-15 & 陆思雨 & XXX & 修改了文档内报错bug \\
 \hline
 \end{revrecord}
 
@@ -88,7 +88,7 @@ V1.1 & 2026-07-12 & 张三 & 王五 & 补充判题流程、异常出错处理、
 9. 所有操作行为记录系统日志，异常数据触发预警提示。
 
 \subsection{总体结构和模块外部设计}
-系统整体采用前后端分离的分层架构，自上而下分为四层：前端展示层（Vue/React）、应用网关/控制器层、核心业务逻辑层（Spring Boot/Python Web）、数据持久层（MySQL & Redis） [cite: 1, 194, 197]。
+系统整体采用前后端分离的分层架构，自上而下分为四层：前端展示层（Vue/React）、应用网关/控制器层、核心业务逻辑层（Spring Boot/Python Web）、数据持久层（MySQL和Redis） [cite: 1, 194, 197]。
 
 系统拆分为六大独立业务模块，其中由人员 1 负责的底层基础模块为 [cite: 224]：
 \begin{enumerate}
@@ -242,15 +242,16 @@ version & int & 乐观锁版本号 & DEFAULT 0 \\ \hline
 
 % 代码块示例：判题任务队列实体结构
 % 代码块示例：JWT Token 载荷实体结构
-\begin{lstlisting}[language=Python]
-import dataclasses
-import time
-
-@dataclasses.dataclass
-class JWTPayload:
-    user_id: int         # 统一用户唯一ID
-    username: str        # 登录用户名
-    role_code: str       # 角色标识: ADMIN / STUDENT / TEACHER 
-    college_id: int      # 属于学院的ID, 便于前端快速筛选组件 
-    exp_time: int        # Token过期时间戳
-\end{lstlisting}
+\begin{verbatim}
+	import dataclasses
+	import time
+	
+	@dataclasses.dataclass
+	class JWTPayload:
+	user_id: int         # 统一用户唯一ID
+	username: str        # 登录用户名
+	role_code: str       # 角色标识: ADMIN / STUDENT / TEACHER 
+	college_id: int      # 属于学院的ID, 便于前端快速筛选组件 
+	exp_time: int        # Token过期时间戳
+\end{verbatim}
+\end{document}

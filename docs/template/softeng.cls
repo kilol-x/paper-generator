@@ -23,84 +23,131 @@
 \RequirePackage{fancyhdr}
 \RequirePackage{tabularx}
 
-% 页面设置
-\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+% 页面设置（符合老师格式：左2.5cm，右2.5cm，上2.8cm，下2.8cm）
+\geometry{left=2.5cm,right=2.5cm,top=2.8cm,bottom=2.8cm}
 
 % 超链接设置
 \hypersetup{
-    colorlinks=true,
-    linkcolor=black,
-    urlcolor=blue,
-    citecolor=black
+	colorlinks=true,
+	linkcolor=black,
+	urlcolor=blue,
+	citecolor=black
 }
 
-% 页眉页脚
+% ========== 修复点：替换废弃的ctexset章节配置，原生重定义章节格式 ==========
+% section 一级标题：三号、加粗
+\renewcommand{\section}{\@startsection{section}{1}{\z@}%
+	{-3.5ex \@plus -1ex \@minus -.2ex}%
+	{2.3ex \@plus.2ex}%
+	{\bfseries\zihao{-3}}}
+
+% subsection 二级标题：四号、加粗
+\renewcommand{\subsection}{\@startsection{subsection}{2}{\z@}%
+	{-3.25ex\@plus -1ex \@minus -.2ex}%
+	{1.5ex \@plus .2ex}%
+	{\bfseries\zihao{4}}}
+
+% subsubsection 三级标题：小四号、加粗
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{\z@}%
+	{-3.25ex\@plus -1ex \@minus -.2ex}%
+	{1.5ex \@plus .2ex}%
+	{\bfseries\zihao{-4}}}
+
+% 页眉页脚（老师格式：页眉显示章节名，页脚显示页码）
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[C]{\small 在线论文文档自动生成系统需求规格说明书}
-\fancyfoot[C]{\thepage}
+\fancyhead[C]{\small \leftmark}   % 自动显示当前章节名
+\fancyfoot[C]{\thepage}            % 页码居中
 \renewcommand{\headrulewidth}{0.4pt}
 \renewcommand{\footrulewidth}{0.4pt}
+\setlength{\headheight}{12.64723pt}
+\addtolength{\topmargin}{-0.64723pt}
 
-% 行距
+% 目录格式（老师要求：目录包含章节编号和页码）
+\RequirePackage{tocbibind}
+\RequirePackage{tocloft}
+\renewcommand{\cftsecfont}{\bfseries}
+\renewcommand{\cftsubsecfont}{\normalfont}
+
+% 行距（老师要求：1.25倍行距）
 \setstretch{1.25}
 
-% ========== 自定义命令 ==========
+% 首行缩进2字符
+\RequirePackage{indentfirst}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.3em}
 
-% 封面命令
-\newcommand{\doccover}[3]{
-    \begin{titlepage}
-        \begin{center}
-            \vspace*{2cm}
-            \zihao{0}\textbf{在线论文文档自动生成系统} \\
-            \vspace{0.5cm}
-            \zihao{2}\textbf{#1} \\
-            \vspace{1cm}
-            \zihao{3}\textbf{版本：#3} \\
-            \vspace{4cm}
-            \zihao{4}
-            \begin{tabular}{rl}
-                项目名称： & #2 \\
-                文档类型： & #1 \\
-                版本号：   & #3 \\
-                编写日期： & \today \\
-            \end{tabular} \\
-            \vspace{3cm}
-            \zihao{3} 实训项目组 \\
-            \vspace{0.5cm}
-            \zihao{4} \today
-        \end{center}
-    \end{titlepage}
-}
-
-% 修订记录环境
-\newenvironment{revrecord}{
-    \section*{修订记录}
-    \begin{longtable}{|p{2cm}|p{3cm}|p{2.5cm}|p{2.5cm}|p{3.5cm}|}
-        \hline
-        \textbf{版本号} & \textbf{修订日期} & \textbf{修订人} & \textbf{审核人} & \textbf{修订说明} \\
-        \hline
-        \endhead
-}{
-    \end{longtable}
-}
-
-% 需求条目命令
-\newcommand{\reqitem}[2]{
-    \noindent \textbf{#1}：{#2} \\
-}
-
-% ========== 代码块样式 ==========
+% 代码块样式（符合老师格式）
 \lstset{
-    basicstyle=\small\ttfamily,
-    keywordstyle=\color{blue},
-    commentstyle=\color{green!60!black},
-    stringstyle=\color{red!80!black},
-    numbers=left,
-    numberstyle=\tiny\color{gray},
-    frame=single,
-    breaklines=true,
-    tabsize=2
+	basicstyle=\small\ttfamily,
+	keywordstyle=\color{blue},
+	commentstyle=\color{green!60!black},
+	stringstyle=\color{red!80!black},
+	numbers=left,
+	numberstyle=\tiny\color{gray},
+	frame=single,
+	breaklines=true,
+	tabsize=2,
+	showstringspaces=false,
+	captionpos=b
 }
+
+% 图片、表格浮动体设置
+\RequirePackage{graphicx}
+\RequirePackage{caption}
+\captionsetup{font=small,labelfont=bf}
+\graphicspath{{../figures/}} % 统一图片路径
+
+% 表格增强
+\RequirePackage{array,booktabs}
+
+% 脚注样式
+\renewcommand{\footnoterule}{\vspace*{-3pt}\hrule width 0.4\columnwidth height 0.4pt\vspace*{2.6pt}}
+\renewcommand{\thefootnote}{\arabic{footnote}}
+
+% 边注样式
+\renewcommand{\marginpar}{\vspace{0pt}\sloppy\marginparfont}
+\newcommand{\marginparfont}{\small\raggedright}
+
+% ========== 自定义全局命令（符合老师格式）==========
+
+% 封面命令：参数1文档名称，参数2项目名称，参数3版本号
+\newcommand{\doccover}[3]{
+	\begin{titlepage}
+		\centering
+		\vspace*{3cm}
+		\heiti\zihao{2}\bfseries #1 \par
+		\vspace{1cm}
+		\zihao{3}项目名称：#2 \par
+		\vspace{2cm}
+		\zihao{4}版本：#3 \par
+		\vspace{3cm}
+		\begin{tabular}{lc}
+			成员： & 42411167 陆思雨 \\ \cline{2-2}
+			成员： & 42411107 钟晶卉 \\ \cline{2-2}
+			成员： & 42436015 刘洛嘉 \\ \cline{2-2}
+			成员： & 42311115 郑羽婷 \\ \cline{2-2}
+			成员： & 42405057 杨凯悦 \\ \cline{2-2}
+		\end{tabular}\\[2cm]
+		\vfill
+		\zihao{-4}实训课程软件工程文档
+	\end{titlepage}
+}
+
+% 修订历史记录环境（符合老师格式）
+\newenvironment{revrecord}{
+	\section*{版本修订记录}
+	\begin{longtable}{|c|c|c|c|p{5cm}|}
+		\hline
+		版本 & 日期 & 修改人 & 审核 & 修改说明 \\
+		\hline
+		\endhead
+	}{
+	\end{longtable}
+	\newpage
+}
+
+% 需求条目快捷命令
+\newcommand{\reqitem}[2]{\noindent \textbf{需求#1：} #2 \par}
 
 \endinput

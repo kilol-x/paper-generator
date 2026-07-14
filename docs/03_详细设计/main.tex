@@ -68,15 +68,15 @@ V1.0 & 2026-07-13 & [您的名字] & 全组 & 完成用户中心、JWT鉴权、R
         \begin{itemize}
             \item \textbf{请求 URL}：\texttt{POST /api/auth/login}
             \item \textbf{请求 Payload (JSON)}：
-\begin{lstlisting}[language=json]
+\begin{verbatim}
 {
   "username": "202611001",
   "password": "mypassword123",
   "role": "STUDENT"
 }
-\end{lstlisting}
+\end{verbatim}
             \item \textbf{返回 Data (JSON)}：
-\begin{lstlisting}[language=json]
+\begin{verbatim}
 {
   "code": 200,
   "message": "Login Success",
@@ -87,7 +87,7 @@ V1.0 & 2026-07-13 & [您的名字] & 全组 & 完成用户中心、JWT鉴权、R
     "realName": "张同学"
   }
 }
-\end{lstlisting}
+\end{verbatim}
         \end{itemize}
 \end{enumerate}
 
@@ -97,7 +97,7 @@ V1.0 & 2026-07-13 & [您的名字] & 全组 & 完成用户中心、JWT鉴权、R
 
 \subsubsection{模块内部数据结构}
 后端运行期内存中维护的用户上下文实体（供全组随取随用）结构定义如下：
-\begin{lstlisting}[language=Python]
+\begin{verbatim}
 @dataclasses.dataclass
 class UserContextEntity:
     user_id: int          # 用户唯一物理ID
@@ -105,7 +105,7 @@ class UserContextEntity:
     role_code: str        # 角色编码: ADMIN / STUDENT / TEACHER
     college_id: int       # 所属学院ID
     client_ip: str        # 客户端请求IP
-\end{lstlisting}
+\end{verbatim}
 
 \subsubsection{模块算法设计}
 模块核心的“全局请求鉴权过滤算法”在后文“第6节 算法详细设计”中统一展开实现。
@@ -134,13 +134,13 @@ class UserContextEntity:
 所有受保护的业务接口（如模板创建、草稿保存、论文批阅），前端在发起 HTTP 请求时，必须在 Header 中强制注入：\texttt{Authorization: Bearer <Token\_String>}。
 \subsubsection{返回数据结构定义}
 基础架构规范了全组统一的公共返回对象封装结构：
-\begin{lstlisting}[language=Python]
+\begin{verbatim}
 @dataclasses.dataclass
 class Result:
     code: int          # 状态码: 200-成功, 401-未认证, 403-无权限, 500-系统异常
     message: str       # 响应文本提示信息
     data: any          # 具体业务逻辑返回的JSON数据载荷
-\end{lstlisting}
+\end{verbatim}
 \subsubsection{调用时序说明}
 调用链由基础架构网关/拦截器优先触发，验签成功并解出 \texttt{UserContextEntity} 后，生命周期才移交给具体的业务子模块（如人员 4 的论文草稿保存逻辑）。
 
@@ -208,7 +208,7 @@ create\_time & datetime & NO & CURRENT & 记录创建时间 \\ \hline
 \end{itemize}
 
 \subsubsection{代码实现}
-\begin{lstlisting}[language=Python]
+\begin{verbatim}
 def pre_handle_intercept(request, response) -> bool:
     # 1. 路由白名单直接放行(如登录接口)
     uri = request.get_request_uri()
@@ -245,7 +245,7 @@ def pre_handle_intercept(request, response) -> bool:
     )
     SecurityContextHolder.set_context(context_user)
     return True
-\end{lstlisting}
+\end{verbatim}
 
 \subsubsection{边界条件处理}
 若高频客户端在极短时间内发起并发请求，且遭遇 Token 刚好过期的交界点，系统设计了双 Token 续期机制（Refresh Token），在边界状态下允许前端静默刷新，提升学生在线撰写论文时的用户体验。
@@ -263,13 +263,13 @@ def pre_handle_intercept(request, response) -> bool:
 任何业务层抛出的安全异常，均向上抛出并最终由基础架构的全局异常处理器（Global Exception Handler）切面统一捕获。
 \subsection{异常返回信息定义}
 触发越权攻击时，系统统一熔断并返回：
-\begin{lstlisting}[language=json]
+\begin{verbatim}
 {
   "code": 403,
   "message": "Access Denied: Illegal privilege escalation detected.",
   "data": null
 }
-\end{lstlisting}
+\end{verbatim}
 
 
 \section{安全详细设计}
@@ -279,17 +279,18 @@ def pre_handle_intercept(request, response) -> bool:
 用户密码全部采用 BCrypt 哈希算法加盐存储，严禁明文暴露。
 \subsection{防攻击处理逻辑（防水平越权）}
 为了防范水平越权（如学生 A 修改学生 B 的论文），基础架构强制约束后续论文编辑模块的代码逻辑必须按如下规则设计：
-\begin{lstlisting}[language=Python]
+\begin{verbatim}
 # 基础架构硬性约束的防水平越权代码范式
 current_uid = SecurityContextHolder.get_context().user_id
 current_paper = paper_repository.query_by_id(request.get_paper_id())
 if current_paper.creator_id != current_uid:
     raise UnauthorizedException("Horizontal privilege escalation: Permission denied.")
-\end{lstlisting}
+\end{verbatim}
 
 
 \section{维护详细设计}
 \subsection{日志模块设计}
-设计全局统一的 AOP 日志切面。凡是触发用户登录、管理员发布/下架模板、学生提交论文、教师评定分数等高危、核心动作，基础架构自动拦截并异步输出审计日志至 \texttt{sys_operation.log}。
+设计全局统一的 AOP 日志切面。凡是触发用户登录、管理员发布/下架模板、学生提交论文、教师评定分数等高危、核心动作，基础架构自动拦截并异步输出审计日志至 \texttt{sys\_operation.log}。
 \subsection{配置项设计}
 包含 JWT 过期时间（默认 2 小时）、数据库物理连接池上限等核心参数，统一通过外部配置文件维护。
+\end{document}
