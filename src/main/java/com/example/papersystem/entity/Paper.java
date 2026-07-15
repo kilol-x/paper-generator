@@ -1,30 +1,41 @@
 package com.example.papersystem.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import jakarta.persistence.*;
 import lombok.Data;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import java.time.LocalDateTime;
 
-/**
- * 论文实体类
- */
 @Data
-@TableName("paper") // 对应数据库表名 paper
+@Entity
+@Table(name = "paper")
+@EntityListeners(AuditingEntityListener.class)
 public class Paper {
 
-    @TableId(type = IdType.AUTO) // 主键自增
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String title;       // 论文标题
+    @Column(length = 500)
+    private String title;
 
-    private Long studentId;     // 所属学生ID
+    @Column(name = "student_id", nullable = false)
+    private Long studentId;
 
-    private String content;     // 论文内容(JSON格式字符串)
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
+    private String content;
 
-    private String status;      // 状态：DRAFT(草稿) / SUBMITTED(已提交)
+    @Column(nullable = false, length = 20)
+    private String status;
 
-    private LocalDateTime createdAt; // 创建时间
+    @CreatedDate
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
-    private LocalDateTime updatedAt; // 更新时间
+    @LastModifiedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }

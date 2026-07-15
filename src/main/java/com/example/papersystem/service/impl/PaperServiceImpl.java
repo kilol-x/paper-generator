@@ -1,46 +1,46 @@
 package com.example.papersystem.service.impl;
 
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.papersystem.entity.Paper;
-import com.example.papersystem.mapper.PaperMapper;
+import com.example.papersystem.repository.PaperRepository;
 import com.example.papersystem.service.PaperService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.time.LocalDateTime;
+
 import java.util.List;
 
 @Service
-public class PaperServiceImpl extends ServiceImpl<PaperMapper, Paper> implements PaperService {
+public class PaperServiceImpl implements PaperService {
+
+    @Autowired
+    private PaperRepository paperRepository;
 
     @Override
     public Paper createPaper(Paper paper, Long studentId) {
         paper.setStudentId(studentId);
-        paper.setCreatedAt(LocalDateTime.now());
-        paper.setUpdatedAt(LocalDateTime.now());
         paper.setStatus("DRAFT");
-        save(paper);
-        return paper;
+        return paperRepository.save(paper);
     }
 
     @Override
     public Paper getPaperById(Long id) {
-        return getById(id);
+        return paperRepository.findById(id).orElse(null);
     }
 
     @Override
     public List<Paper> getPapersByStudentId(Long studentId) {
-        return lambdaQuery().eq(Paper::getStudentId, studentId).list();
+        return paperRepository.findByStudentIdOrderByUpdatedAtDesc(studentId);
     }
 
     @Override
     public void updatePaperContent(Long id, String content) {
-        Paper paper = getById(id);
-        paper.setContent(content);
-        paper.setUpdatedAt(LocalDateTime.now());
-        updateById(paper);
+        paperRepository.findById(id).ifPresent(paper -> {
+            paper.setContent(content);
+            paperRepository.save(paper);
+        });
     }
 
     @Override
     public void deletePaper(Long id) {
-        removeById(id);
+        paperRepository.deleteById(id);
     }
 }
