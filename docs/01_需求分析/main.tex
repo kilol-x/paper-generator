@@ -1,190 +1,436 @@
 % 调用上级目录公共模板
 \documentclass{../template/softeng}
+\usepackage{graphicx} % 确保引用了此包以支持图片
 
 \begin{document}
 
-% 封面：文档名、项目名、版本
-\doccover{软件需求规格说明书}
-{在线论文文档自动生成系统}
-{V2026.07}
+	% 封面：文档名、项目名、版本
+	\doccover{软件需求规格说明书}
+	{在线论文自动生成系统}
+	{V2026.07}
 
-% 目录
-\tableofcontents
-\newpage
+	% 目录
+	\tableofcontents
+	\newpage
 
-% 修订记录
-\begin{revrecord}
-V1.0 & 2026-07-13 & 郑羽婷 & 陆思雨 & 初稿完成，完成功能性需求 \\
-\hline
-V1.1 & 2026-07-13 & 陆思雨 & XXX & 调整了任务概述和功能描述 \\
-\hline
-\end{revrecord}
+	% 修订记录
+	\begin{revrecord}
+		V1.0 & 2026-07-13 & 郑羽婷 & 陆思雨 & 初稿完成，完成功能性需求 \\
+		\hline
+		V1.1 & 2026-07-14 & 陆思雨 & 郑羽婷 & 扩充需求描述，完善非功能性需求 \\
+		\hline
+		V1.2 & 2026-07-14 & 钟晶卉 & xxx & 扩充至目标页数 \\
+		\hline
+	\end{revrecord}
 
-% 正文正文结构（软件工程国标标准章节）
-\section{引言}
-\subsection{编写目的}
-本文档为在线论文文档自动生成工具软件需求规格说明书，用于完整定义系统全部功能性与非功能性需求，明确项目开发边界、业务规则、数据规范、运行约束。
-本文档交付对象包含项目经理、系统设计人员、前后端开发工程师、测试人员，作为项目规划、架构设计、代码开发、功能测试、验收交付的核心依据。
+	% 正文结构（软件工程国标标准章节）
+	\section{引言}
 
-\subsection{项目背景}
-本系统为高校大二软件工程实训项目，开发单位为在校实训开发小组，服务对象为高校程序设计课程教师与在校学生。
-系统独立部署运行，无第三方外部系统强制对接，仅依托Web服务、判题沙箱、数据库完成完整业务闭环，用于支撑线上编程练习、自动代码评测、学情统计与教学管理。
+	\subsection{编写目的}
+	本文档为在线论文文档自动生成工具软件需求规格说明书，用于完整定义系统全部功能性与非功能性需求，明确项目开发边界、业务规则、数据规范、运行约束。
 
-\subsection{定义}
-\begin{itemize}
-    \item JWT：JSON Web Token，用于前后端分离架构下的无状态身份鉴权工具；
-    \item RBAC：基于角色的权限控制（Role-Based Access Control），通过用户-角色-权限的映射实现系统隔离；
-    \item 富文本编辑器：网页端支持字体、层级、表格、图片嵌入的在线排版组件；
-\end{itemize}
+	本文档交付对象包含项目经理、系统设计人员、前后端开发工程师、测试人员，作为项目规划、架构设计、代码开发、功能测试、验收交付的核心依据。所有需求条目均依据国家标准 GB/T 9385-2008《计算机软件需求规格说明规范》进行组织与编写，确保需求文档的规范性与可追溯性。
 
-\subsection{参考资料}
-\begin{enumerate}
-    \item GB/T 9385-2008 计算机软件需求规格说明规范；
-    \item GB/T 30998-2014 信息技术 用户界面 网页可访问性指南；
-    \item 实训项目任务书：在线论文文档自动生成工具开发（2026软件工程实训）；
-    \item 基于 JWT 的前后端分离无状态认证体系设计与安全规范；
-    \item 基于 RBAC (基于角色的权限控制) 模型的多角色权限隔离设计指南[cite: 1]；
-    \item MySQL 8.0 关系型数据库安全配置与高效索引设计手册[cite: 2]；
-    \item 信息安全技术：Web 应用安全防护与防范水平/垂直越权技术规范。
-\end{enumerate}
+	\subsection{项目背景与范围}
+	本系统为高校软件工程实训项目，开发单位为在校实训开发小组，服务对象为高校教师与在校学生。系统核心业务范围涵盖以下五个方面：
 
-\section{任务概述}
-\subsection{目标}
-开发一套Web端在线论文编辑与标准化文档生成系统，主要用于辅助学生规范化完成课程论文、毕业论文、项目设计类论文的在线撰写、版式排版与文档导出。系统设置管理员、学生、教师三类用户角色，分别赋予模板管理、论文编辑导出、课程论文线上批阅等对应权限，实现论文模板统一配置、网页端图文表格参考文献编辑、全文在线预览、docx与PDF格式文件导出、课程论文批阅留痕等完整业务流程。
+	\begin{enumerate}
+		\item \textbf{模板管理}：管理员对论文模板的创建、编辑、版本控制与上下架管理；
+		\item \textbf{在线写作}：学生基于模板进行结构化论文撰写，支持图文表格与参考文献插入；
+		\item \textbf{文档导出}：按模板格式一键导出标准 docx 与 PDF 格式文件；
+		\item \textbf{在线预览}：Web 端整篇论文完整排版预览与分页浏览；
+		\item \textbf{课程批阅}：教师对学生提交的课程论文进行批注、评分与版本管理。
+	\end{enumerate}
 
-\subsection{系统角色与权限划分}
-基础架构必须在技术层面上强制约束并实现以下三类角色的权限边界：
-\begin{itemize}
-    \item \textbf{系统管理员}：具备系统后台基础数据管理、学院信息维护、多类型论文模板新增/编辑/上下架权限，安全策略上禁止其直接编辑学生论文内容。
-    \item \textbf{学生用户}：具备选用模板、在线编辑论文、素材上传、草稿保存、全文预览、导出 Word/PDF 文档以及提交课程论文至教师端的权限。
-    \item \textbf{教师用户}：仅针对课程论文拥有专属批阅权限，可执行查看内容、添加位置批注、填写评语、评定成绩、退回论文等操作，具备查看历次批阅历史记录的权限。
-\end{itemize}
+	系统独立部署运行，无第三方外部系统强制对接，依托 Web 服务、关系型数据库与文件存储服务完成完整业务闭环。
 
-\subsection{运行环境}
-\begin{itemize}
-    \item 服务操作系统：Windows Server / Linux CentOS；
-    \item Web服务：Nginx / Tomcat；
-    \item 数据库：MySQL 8.0；
-    \item 判题依赖：多语言编译器、隔离沙箱程序；
-    \item 客户端：主流Chrome、Edge浏览器。
-\end{itemize}
+	\subsection{定义与缩略语}
+	\begin{itemize}
+		\item \textbf{JWT}：JSON Web Token，用于前后端分离架构下的无状态身份鉴权；
+		\item \textbf{RBAC}：基于角色的权限控制（Role-Based Access Control），通过用户-角色-权限三层映射实现访问隔离；
+		\item \textbf{富文本编辑器}：网页端所见即所得的文本编辑组件，支持字体、层级、表格、图片嵌入等排版操作；
+		\item \textbf{docx}：Microsoft Word 文档标准格式，基于 Office Open XML 规范；
+		\item \textbf{PDF}：便携式文档格式（Portable Document Format），用于跨平台保持文档排版一致性；
+		\item \textbf{三线表}：学术论文常用表格格式，由顶线、栏目线和底线三条横线构成。
+	\end{itemize}
 
-\subsection{条件与限制}
-\begin{enumerate}
-    \item 判题服务必须做代码隔离，禁止用户代码直接访问服务器本地文件；
-    \item 系统需限制单用户单次代码运行时间、内存上限，避免服务器资源耗尽；
-    \item 仅支持教师、学生两种角色，不开放游客完整答题权限；
-    \item 题库批量导入仅支持标准格式化文本文件，不支持自定义复杂格式；
-    \item 平台部署硬件资源有限，并发判题任务数量存在上限。
-\end{enumerate}
+	\subsection{参考资料}
+	\begin{enumerate}
+		\item GB/T 9385-2008 计算机软件需求规格说明规范；
+		\item GB/T 7714-2015 信息与文献 参考文献著录规则；
+		\item 实训项目任务书：在线论文文档自动生成工具开发（2026 软件工程实训）；
+		\item ISO/IEC 25010:2011 系统与软件质量模型；
+		\item Apache POI Word 文档生成技术参考文档；
+		\item iText PDF 文档生成技术参考文档。
+	\end{enumerate}
 
-\section{数据描述}
-\subsection{静态数据}
-系统长期持久存储的不变基础数据：用户账号信息、角色定义、权限节点、学院/院系基础信息表。
-\subsection{动态数据}
-系统运行过程中实时产生、变更的数据：用户登录 Token 会话、论文草稿、参考文献条目、教师批注与评分记录、版本流转历史日志。
+	\section{任务概述}
 
-\subsection{数据库介绍}
-采用 MySQL 8.0 关系型数据库体系，由基础架构人员统一设计并建立以下核心鉴权及基础信息表，各表通过外键或关联字段建立物理/逻辑约束：
-\begin{itemize}
-    \item \textbf{用户表 (sys\_user)}：存储用户唯一标识 (UID)、用户名、加盐哈希密码、所属学院 ID、账号激活状态、创建时间等。
-    \item \textbf{角色表 (sys\_role)}：存储固定三类角色（ADMIN, STUDENT, TEACHER）的标识与描述。
-    \item \textbf{用户角色关联表 (sys\_user\_role)}：维护用户与角色的多对多/一对一映射关系，作为后端鉴权拦截的直接依据。
-    \item \textbf{学院信息表 (sys\_college)}：维护全院系的基础数据，供管理员维护及学生选用模板时进行维度筛选。
-\end{itemize}
-\subsection{数据词典}
-包含用户ID、用户名、角色标识、题目ID、难度等级、输入输出样例、时间限制、内存限制、提交状态码、判题耗时、通过率、在线人数、队列长度等全部字段含义、数据类型、取值范围说明。
+	\subsection{系统目标}
+	开发一套 Web 端在线论文编辑与标准化文档生成系统，主要用于辅助学生规范化完成课程论文、毕业论文、项目设计类论文的在线撰写、版式排版与文档导出。
 
-\subsection{数据采集}
-\begin{itemize}
-    \item 基础题库数据：教师手动录入或批量文件导入；
-    \item 用户数据：学生注册、教师后台录入；
-    \item 运行统计数据：系统后台定时采集在线、判题负载、提交数据；
-    \item 交互数据：学生提交代码、发帖、评论行为实时采集入库。
-\end{itemize}
+	系统设置管理员、学生、教师三类用户角色，分别赋予模板管理、论文编辑导出、课程论文线上批阅等对应权限，实现论文模板统一配置、网页端图文表格参考文献编辑、全文在线预览、docx 与 PDF 格式文件导出、课程论文批阅留痕等完整业务流程。
 
-\section{功能需求}
-\subsection{功能划分}
-系统基础架构划分为三大核心子模块：统一用户中心（注册/登录）、JWT 安全鉴权引擎、基于 RBAC 的多角色权限控制拦截器。
+	% --- 插入架构图 ---
+	\begin{figure}[htbp]
+		\centering
+		\includegraphics[width=0.9\textwidth]{a6d112cee62853d262b8f58e12ae4433.png}
+		\caption{在线论文自动生成系统技术架构图}
+		\label{fig:architecture}
+	\end{figure}
+	% ------------------
 
-\subsection{功能描述}
-\reqitem{FR001}{管理员可新增、编辑、删除学院信息，按学院维度对论文模板进行分类归属管理。}
-\reqitem{FR002}{管理员可发布、编辑、启用、停用毕业论文、课程论文、项目论文等多类型模板，支持模板下架与版本管理。}
-\reqitem{FR003}{管理员可配置模板内置章节结构，涵盖封面、原创声明、中英文摘要与关键词、多级章节正文、附录、参考文献等固定版式。}
-\reqitem{FR004}{管理员可统一约束模板排版格式，包括字体、字号、行距、段落缩进、页边距、页眉页脚与页码等参数。}
-\reqitem{FR005}{管理员可对模板进行在线预览与修改，模板更新后学生新建论文将自动套用最新版本。}
-\reqitem{FR006}{学生可注册账号、登录系统、修改个人信息，按学院与论文类型筛选选用对应模板。}
-\reqitem{FR007}{学生可依托模板大纲进行结构化章节编辑，支持标题层级设置、文字加粗、对齐方式、段落缩进等基础排版操作。}
-\reqitem{FR008}{学生可从本地上传图片并嵌入文档指定位置，支持图片位置调整与大小修改。}
-\reqitem{FR009}{学生可在线插入并编辑自定义表格，适配论文数据表格与学术三线表等使用场景。}
-\reqitem{FR010}{学生可逐条录入参考文献的作者、标题、发表刊物、出版年份、页码等信息，系统按模板格式自动统一排版文献列表，并支持正文引用标注与文献条目关联。}
-\reqitem{FR011}{学生编辑过程中系统自动保存草稿，同时支持手动保存，学生可多次进入系统查看、续写、修改历史论文文档。}
-\reqitem{FR012}{学生可一键生成整篇论文的网页预览页面，完整展示封面、章节、图片、表格、参考文献的整体排版效果，支持分页浏览。}
-\reqitem{FR013}{学生可按所选模板既定格式一键导出标准docx格式Word文档与PDF格式文件，导出内容排版规范、图文完整无错乱。}
-\reqitem{FR014}{学生完成课程论文后可提交给对应授课教师，提交后文档锁定，仅教师可执行批阅或退回操作。}
-\reqitem{FR015}{教师可在线查看学生提交的课程论文预览内容，在文档对应位置添加批注与修改建议。}
-\reqitem{FR016}{教师可填写整体评语、评定论文分数与等级，也可退回论文供学生修改重提。}
-\reqitem{FR017}{系统留存每一次提交、批阅、退回的版本记录，学生可查看全部批注内容并根据意见调整后重新提交复审。}
-\reqitem{FR018}{系统对管理员、学生、教师三类角色进行身份认证与权限隔离，各角色仅可访问授权范围内的功能与数据。}
+	\subsection{系统角色与权限划分}
+	基础架构必须在技术层面上强制约束并实现以下三类角色的权限边界：
 
-\section{性能需求}
-\subsection{数据精确度}
-判题结果严格匹配测试用例标准输出，无字符、空格、换行误差；统计通过率、解题数量数据精确至整数，排行榜实时数据无统计偏差。
+	\begin{itemize}
+		\item \textbf{系统管理员}：具备系统后台基础数据管理、学院信息维护、多类型论文模板新增/编辑/上下架权限，安全策略上禁止其直接编辑学生论文内容。
+		\item \textbf{学生用户}：具备选用模板、在线编辑论文、素材上传、草稿保存、全文预览、导出 Word/PDF 文档以及提交课程论文至教师端的权限。
+		\item \textbf{教师用户}：仅针对课程论文拥有专属批阅权限，可执行查看内容、添加位置批注、填写评语、评定成绩、退回论文等操作，具备查看历次批阅历史记录的权限。
+	\end{itemize}
 
-\subsection{时间特性}
-\begin{itemize}
-    \item 网页页面加载响应时间 ≤ 1.5s；
-    \item 普通代码提交判题反馈时间 ≤ 3s；
-    \item 监控数据刷新间隔 5s；
-    \item 批量导入题库处理单条题目耗时 ≤ 0.1s；
-\end{itemize}
+	\subsection{运行环境与条件限制}
+	\begin{itemize}
+		\item 服务端操作系统：Windows Server 2019 / Linux CentOS 7.0 及以上；
+		\item Web 服务器：Nginx 1.18 或 Apache Tomcat 9.0；
+		\item 数据库：MySQL 8.0 及以上版本；
+		\item 客户端：主流浏览器（Chrome 90+、Edge 90+、Firefox 88+）；
+		\item 网络环境：支持 HTTP/HTTPS 协议，建议带宽不低于 10Mbps。
+	\end{itemize}
 
-\subsection{适应性}
-系统可适配Windows、Linux服务端环境；支持新增编程语言编译器；可扩展班级分组统计功能；可调整判题并发上限、代码运行时空限制参数。
+	系统需满足以下约束条件：
+	\begin{enumerate}
+		\item 单篇论文字数限制不超过 50000 字；
+		\item 单篇论文图片不超过 50 张，单张图片大小不超过 5MB；
+		\item 参考文献不超过 200 条；
+		\item 教师批注单条不超过 500 字符；
+		\item 系统应支持至少 100 名用户同时在线编辑操作。
+	\end{enumerate}
 
-\section{运行需求}
-\subsection{用户界面}
-采用Web网页可视化界面，题库分页列表、在线代码编辑器、监控数据图表、表格化提交记录、分页讨论帖子；统一菜单布局、按钮样式，弹窗提示操作结果。
 
-\subsection{硬件接口}
-无需专用硬件外设接口，仅依赖服务器CPU、内存、磁盘资源完成代码编译与数据存储。
+	\section{数据描述}
 
-\subsection{软件接口}
-数据库接口：MySQL标准JDBC/ODBC连接接口；
-判题接口：本地进程调用各语言编译器；
-前端接口：前后端RESTful API数据交互接口。
+	\subsection{静态数据}
+	系统长期持久存储的基础数据包括：用户账号信息、角色定义数据、权限节点数据、学院/院系基础信息、论文模板基础结构与排版参数。
 
-\subsection{故障处理}
-\begin{itemize}
-    \item 数据库断开：页面提示服务器异常，缓存用户未提交代码；
-    \item 判题服务器宕机：任务存入队列，恢复后自动重试判题；
-    \item 超长恶意代码：直接拦截，返回运行超限错误；
-    \item 文件上传失败：弹窗提示并保留本地代码。
-\end{itemize}
+	\subsection{动态数据}
+	系统运行过程中实时产生、变更的数据包括：用户登录 Token 会话、学生论文草稿内容、论文版本历史记录、教师批注与评分记录、提交流转日志、系统操作审计日志。
 
-\section{其它需求}
-\begin{enumerate}
-    \item \textbf{安全性}：系统内所有用户密码严禁明文存储，必须在后端采用强哈希算法（如 BCrypt 或 SHA-256 加盐）进行不可逆加密；传输层敏感接口需防范 SQL 注入攻击；JWT Token 需设置合理的过期时间（如 2 小时），并采用安全的密钥进行签名。
-    \item \textbf{可维护性}：基础架构需集成标准日志框架（如 Logback/AOP 切面），自动记录用户登录、登出、论文提交、管理员模板下架等核心关键业务的审计日志，为后续系统运维提供追溯依据。
-\end{enumerate}
+	\subsection{数据库核心表设计}
+	采用 MySQL 8.0 关系型数据库，主要数据表如下：
 
-% 插入图片示例（OJ系统用例图）
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.7\textwidth]{usecase.png}
-    \caption{在线OJ系统整体用例图}
-\end{figure}
+	\subsubsection{用户权限核心表}
+	\begin{itemize}
+		\item \textbf{用户表 (sys\_user)}：存储用户 ID、用户名、加盐哈希密码、邮箱、所属学院、账号状态、注册时间等；
+		\item \textbf{角色表 (sys\_role)}：存储 ADMIN、STUDENT、TEACHER 三类角色标识；
+		\item \textbf{用户角色关联表 (sys\_user\_role)}：维护用户与角色的映射关系，作为鉴权依据；
+		\item \textbf{权限表 (sys\_permission)}：存储系统功能点权限标识；
+		\item \textbf{角色权限关联表 (sys\_role\_permission)}：维护角色与权限的映射关系。
+	\end{itemize}
 
-% 代码块示例（简易判题结果状态枚举）
-\begin{lstlisting}[language=Python]
-# 判题结果状态枚举
-class JudgeStatus:
-    ACCEPT = "AC"          # 通过
-    WRONG_ANSWER = "WA"    # 答案错误
-    COMPILE_ERROR = "CE"   # 编译错误
-    TIME_LIMIT = "TLE"     # 超时
-    MEMORY_LIMIT = "MLE"   # 内存超限
-    RUNTIME_ERROR = "RE"   # 运行时错误
-\end{lstlisting}
+	\subsubsection{学院与模板管理表}
+	\begin{itemize}
+		\item \textbf{学院信息表 (sys\_college)}：维护学院 ID、名称、编码等信息；
+		\item \textbf{模板信息表 (tmpl\_template)}：存储模板 ID、名称、类型（毕业论文/课程论文/项目论文）、归属学院、版本号、启用状态；
+		\item \textbf{模板结构表 (tmpl\_structure)}：存储模板章节层级结构与标题；
+		\item \textbf{模板样式表 (tmpl\_style)}：存储字体、字号、行距、缩进、页边距等排版参数。
+	\end{itemize}
+
+	\subsubsection{论文写作核心表}
+	\begin{itemize}
+		\item \textbf{论文主表 (paper\_main)}：存储论文 ID、标题、学生 ID、模板 ID、论文类型、状态（草稿/已提交/已批阅/已退回）、创建及修改时间；
+		\item \textbf{论文章节表 (paper\_chapter)}：存储各章节内容（富文本 HTML）、层级、标题、排序号；
+		\item \textbf{论文附件表 (paper\_attachment)}：存储图片等附件文件路径、大小、上传时间；
+		\item \textbf{参考文献表 (paper\_reference)}：存储文献类型、作者、标题、刊名、年份、页码等信息；
+		\item \textbf{引用关联表 (paper\_citation)}：维护正文引用标注与参考文献条目的关联关系。
+	\end{itemize}
+
+	\subsubsection{课程论文批阅表}
+	\begin{itemize}
+		\item \textbf{提交记录表 (submission\_record)}：存储提交 ID、论文 ID、教师 ID、提交时间、提交状态；
+		\item \textbf{批注记录表 (annotation\_record)}：存储批注位置、内容、创建及修改时间；
+		\item \textbf{评阅意见表 (review\_record)}：存储评语、分数、等级、评阅时间；
+		\item \textbf{版本流转日志表 (version\_log)}：存储操作类型、操作人、版本快照等流转历史。
+	\end{itemize}
+
+	\subsection{核心数据字典}
+
+	\begin{tabular}{|p{3cm}|p{2.5cm}|p{5.5cm}|}
+		\hline
+		\textbf{字段名} & \textbf{数据类型} & \textbf{说明} \\
+		\hline
+		user\_id & BIGINT(20) & 用户唯一标识，主键自增 \\
+		\hline
+		username & VARCHAR(50) & 用户名，唯一，用于登录 \\
+		\hline
+		password\_hash & VARCHAR(255) & BCrypt 加密后的密码哈希 \\
+		\hline
+		template\_id & BIGINT(20) & 模板唯一标识 \\
+		\hline
+		template\_type & TINYINT(1) & 模板类型：1-毕业论文，2-课程论文，3-项目论文 \\
+		\hline
+		paper\_id & BIGINT(20) & 论文唯一标识 \\
+		\hline
+		paper\_status & TINYINT(1) & 状态：1-草稿，2-已提交，3-已批阅，4-已退回 \\
+		\hline
+		annotation\_text & TEXT & 批注内容 \\
+		\hline
+		score & DECIMAL(5,2) & 论文评分，范围 0-100 \\
+		\hline
+		grade & VARCHAR(10) & 等级：优秀/良好/中等/及格/不及格 \\
+		\hline
+	\end{tabular}
+
+	\section{功能需求}
+
+	\subsection{功能划分}
+	系统划分为以下六大核心功能模块：
+	\begin{enumerate}
+		\item 用户认证与权限管理模块；
+		\item 后台基础数据管理模块；
+		\item 论文模板管理模块；
+		\item 学生在线写作模块；
+		\item 文档预览与导出模块；
+		\item 课程论文批阅模块。
+	\end{enumerate}
+
+	\subsection{功能需求详细描述}
+
+	\subsubsection{用户认证与权限管理}
+	\reqitem{FR001}{系统支持学生通过用户名和密码自行注册账号，需填写真实姓名、学号、邮箱、手机号及所属学院，系统校验用户名与邮箱唯一性。}
+	\reqitem{FR002}{系统支持所有用户通过用户名密码登录，登录成功签发 JWT Token，前端存储 Token 并携带于后续请求中。}
+	\reqitem{FR003}{系统基于 RBAC 模型实现权限拦截，对三类角色进行严格访问隔离，禁止越权操作。}
+	\reqitem{FR004}{JWT Token 有效期为 2 小时，过期需重新登录，持续操作时自动续期。}
+
+	\subsubsection{后台基础数据与模板管理}
+	\reqitem{FR005}{管理员可新增、编辑、删除学院信息，删除时需校验无关联模板或用户数据。}
+	\reqitem{FR006}{管理员可新增论文模板，填写模板名称、类型、归属学院，配置排版参数与章节大纲。}
+	\reqitem{FR007}{管理员可启用或停用模板，停用后学生新建论文不可选用，已使用模板的论文不受影响。}
+	\reqitem{FR008}{管理员可配置模板内置结构：封面、原创声明、中英文摘要、关键词、多级章节正文、附录、参考文献等固定版式。}
+	\reqitem{FR009}{管理员可统一约束排版格式：字体、字号、行距、段落缩进、页边距、页眉页脚与页码。}
+	\reqitem{FR010}{管理员可在线预览模板效果，模板更新后学生新建论文自动套用最新版本。}
+
+	\subsubsection{学生在线写作}
+	\reqitem{FR011}{学生可按学院与论文类型筛选模板，选择后创建论文项目，自动生成预设章节结构。}
+	\reqitem{FR012}{编辑器支持标题层级设置、加粗、对齐方式、段落缩进等基础排版操作。}
+	\reqitem{FR013}{学生可本地上传图片（JPG、PNG、GIF、SVG）嵌入文档，支持缩放与对齐调整。}
+	\reqitem{FR014}{学生可插入自定义表格，支持合并拆分单元格、调整列宽行高，并支持一键转换为学术三线表。}
+	\reqitem{FR015}{学生可逐条录入参考文献，包含文献类型、作者、标题、刊名、年份、页码等，系统按模板格式自动统一排版。}
+	\reqitem{FR016}{学生可在正文中插入引用标注，自动生成带方括号序号并与文献条目关联。}
+	\reqitem{FR017}{系统每 30 秒自动保存草稿，同时支持手动保存，学生可多次进入系统续写修改。}
+
+	\subsubsection{全文预览与文档导出}
+	\reqitem{FR018}{学生可一键生成整篇论文的网页预览，完整展示封面、章节、图片、表格、参考文献排版效果，支持分页浏览。}
+	\reqitem{FR019}{系统按模板格式一键导出标准 docx 格式 Word 文档与 PDF 文件，排版规范、图文完整无错乱。}
+	\reqitem{FR020}{导出功能支持选择导出范围（整篇论文或正文部分），系统记录导出操作日志。}
+
+	\subsubsection{课程论文批阅}
+	\reqitem{FR021}{学生完成课程论文后可提交给对应授课教师，提交后文档锁定，仅教师可执行批阅或退回。}
+	\reqitem{FR022}{教师在线查看论文预览内容，可在任意段落或行位置添加批注与修改建议。}
+	\reqitem{FR023}{教师可填写整体评语、评定分数与等级，执行通过或退回操作，退回时需填写修改建议。}
+	\reqitem{FR024}{系统留存每一次提交、批阅、退回的版本记录，学生可查看全部批注内容并修改后重新提交复审。}
+
+	\section{接口需求}
+
+	\subsection{内部接口}
+	系统采用前后端分离架构，通过 RESTful API 进行数据交互，所有接口采用 JSON 格式，UTF-8 编码。
+
+	\subsubsection{认证接口}
+	\begin{itemize}
+		\item POST /api/auth/login：用户登录，返回 JWT Token；
+		\item POST /api/auth/register：用户注册；
+		\item POST /api/auth/logout：用户登出，Token 加入黑名单；
+		\item POST /api/auth/refresh：刷新 Token。
+	\end{itemize}
+
+	\subsubsection{模板管理接口}
+	\begin{itemize}
+		\item GET /api/admin/templates：获取模板列表（分页）；
+		\item POST /api/admin/templates：创建模板；
+		\item PUT /api/admin/templates/{id}：编辑模板；
+		\item DELETE /api/admin/templates/{id}：删除模板；
+		\item PATCH /api/admin/templates/{id}/status：启用/停用模板；
+		\item GET /api/admin/templates/{id}/preview：在线预览模板。
+	\end{itemize}
+
+	\subsubsection{论文编辑接口}
+	\begin{itemize}
+		\item GET /api/student/papers：获取论文列表；
+		\item POST /api/student/papers：创建论文（指定模板 ID）；
+		\item GET /api/student/papers/{id}：获取论文详情；
+		\item PUT /api/student/papers/{id}：更新论文内容；
+		\item POST /api/student/papers/{id}/save：手动保存草稿；
+		\item POST /api/student/papers/{id}/images：上传图片附件；
+		\item POST /api/student/papers/{id}/references：新增参考文献。
+	\end{itemize}
+
+	\subsubsection{预览与导出接口}
+	\begin{itemize}
+		\item GET /api/student/papers/{id}/preview：获取网页预览 HTML；
+		\item GET /api/student/papers/{id}/export/docx：导出 Word 文档（文件流）；
+		\item GET /api/student/papers/{id}/export/pdf：导出 PDF 文档（文件流）。
+	\end{itemize}
+
+	\subsubsection{批阅接口}
+	\begin{itemize}
+		\item POST /api/student/papers/{id}/submit：学生提交课程论文；
+		\item GET /api/teacher/papers/submitted：获取待批阅列表；
+		\item POST /api/teacher/papers/{id}/annotations：添加批注；
+		\item PUT /api/teacher/papers/{id}/review：提交评阅意见；
+		\item POST /api/teacher/papers/{id}/reject：退回论文；
+		\item POST /api/teacher/papers/{id}/approve：通过论文；
+		\item GET /api/teacher/papers/{id}/history：获取批阅历史。
+	\end{itemize}
+
+	\subsection{外部接口}
+	系统为独立部署应用，预留以下可选接口：
+	\begin{itemize}
+		\item \textbf{邮件服务接口}（SMTP）：用于发送注册验证、密码重置、提交通知等邮件；
+		\item \textbf{统一身份认证接口}（OAuth 2.0/CAS）：可选对接学校统一身份认证系统；
+		\item \textbf{云存储接口}（阿里云 OSS/腾讯云 COS）：可选用于存储论文附件图片。
+	\end{itemize}
+
+	\section{非功能性需求}
+
+	\subsection{性能需求}
+	\begin{itemize}
+		\item 页面加载响应时间 ≤ 1.5 秒（标准网络环境）；
+		\item 论文保存操作响应时间 ≤ 1 秒；
+		\item 网页预览生成时间 ≤ 3 秒；
+		\item 文档导出时间 ≤ 5 秒（Word）/ ≤ 8 秒（PDF），单篇论文万字以内；
+		\item 系统支持至少 100 名用户同时在线编辑，响应时间不显著下降；
+		\item 参考文献序号与正文引用标注一一对应，准确无误；
+		\item 导出文档排版格式与模板定义一致，误差不超过 1\%。
+	\end{itemize}
+
+	\subsection{安全性需求}
+	\begin{itemize}
+		\item \textbf{密码安全}：用户密码采用 BCrypt 强哈希加密（工作因子 ≥ 10），严禁明文存储；
+		\item \textbf{传输安全}：生产环境启用 HTTPS，TLS 1.2 及以上加密传输；
+		\item \textbf{注入防范}：数据库操作使用参数化查询或 ORM，禁止拼接 SQL；
+		\item \textbf{XSS/CSRF 防范}：用户输入严格过滤转义，状态变更请求验证 CSRF Token；
+		\item \textbf{越权防范}：完整垂直与水平越权防范，学生仅可编辑本人论文，教师仅可批阅本人课程论文；
+		\item \textbf{会话安全}：JWT Token 设置 2 小时过期，使用安全密钥签名；
+		\item \textbf{文件安全}：限制上传文件类型为图片格式，校验 MIME 类型，重命名存储；
+		\item \textbf{审计日志}：记录登录、论文创建/修改/提交/导出、模板管理、批阅等核心操作日志，保留 180 天。
+	\end{itemize}
+
+	\subsection{可靠性需求}
+	\begin{itemize}
+		\item 系统全年可用性不低于 99.5\%；
+		\item 数据库每日凌晨自动全量备份，保留 30 天；
+		\item 系统具备故障自动恢复能力，重启后数据不丢失；
+		\item 自动保存机制确保最多丢失 30 秒内编辑内容；
+		\item 关键业务操作（提交、批阅、导出）具备事务性，保证数据一致性。
+	\end{itemize}
+
+	\subsection{可维护性与易用性需求}
+	\begin{itemize}
+		\item 代码遵循统一编码规范，具备良好注释覆盖率；
+		\item 集成标准日志框架（SLF4J + Logback），日志按级别分类，按日期滚动归档；
+		\item 系统提供健康检查接口（/actuator/health）；
+		\item 配置支持外部化，开发/测试/生产环境隔离；
+		\item 核心模块单元测试覆盖率不低于 70\%；
+		\item 界面遵循 Material Design 规范，操作反馈清晰明确；
+		\item 支持 Ctrl+S 保存草稿、Ctrl+B 加粗等键盘快捷键；
+		\item 适配主流屏幕分辨率（1920×1080、1366×768）。
+	\end{itemize}
+
+	\subsection{可扩展性需求}
+	\begin{itemize}
+		\item 应用服务器与数据库支持集群部署，通过负载均衡实现水平扩展；
+		\item 模板类型支持扩展（可增加调研报告、实验报告等）；
+		\item 参考文献格式支持扩展（预留 GB/T 7714、APA、MLA、Chicago 等配置接口）；
+		\item 文档导出引擎支持插件化扩展（后续可增加 LaTeX、HTML 等格式）。
+	\end{itemize}
+
+	\section{运行需求}
+
+	\subsection{用户界面}
+	系统采用 Web 可视化界面，整体 UI 风格简洁清晰：
+
+	\begin{itemize}
+		\item 登录/注册页面：居中卡片式布局；
+		\item 学生工作台：左侧导航菜单，右侧内容展示区；
+		\item 论文编辑器：顶部工具栏，中部富文本编辑区，底部状态栏与保存按钮；
+		\item 模板管理后台：表格化展示，提供搜索、筛选与操作按钮；
+		\item 论文预览页：模拟 A4 纸样式，支持分页浏览与导出按钮；
+		\item 批阅界面：左侧论文预览区，右侧批注面板，底部评语与评分表单；
+		\item 重要操作（删除、提交）需二次确认弹窗。
+	\end{itemize}
+
+	\subsection{硬件与软件接口}
+	\begin{itemize}
+		\item 无需专用硬件外设接口，依赖服务器 CPU、内存、磁盘资源；
+		\item 数据库接口：JDBC 连接 MySQL，HikariCP 连接池；
+		\item 文件存储：Java NIO 处理上传，存储至本地文件系统；
+		\item 文档生成：Apache POI 生成 docx，iText 生成 PDF；
+		\item 前端交互：Axios 封装 HTTP 请求，JSON 格式交互；
+		\item 缓存：可选 Redis 存储 Token 黑名单与热点数据。
+	\end{itemize}
+
+	\subsection{故障处理}
+	\begin{itemize}
+		\item 数据库连接故障：自动重试 3 次，失败提示“服务器暂时不可用”并记录 ERROR 日志；
+		\item 文件上传失败：弹窗提示错误原因，保留用户编辑内容；
+		\item 文档导出超时：异步处理，超时提示“导出任务超时，请稍后重试”；
+		\item 服务重启：优雅关闭与启动，重启后用户需重新登录，已保存数据完整；
+		\item 并发冲突：同一论文多标签页编辑时，后保存覆盖先保存，给出覆盖提示；
+		\item 网络中断：前端提示“网络已断开，正在重连”，恢复后自动重试未完成请求。
+	\end{itemize}
+
+	\section{其它需求}
+
+	\subsection{交付需求}
+	项目需交付以下成果：
+	\begin{itemize}
+		\item 完整源代码（前后端代码、数据库脚本、配置文件）；
+		\item 系统部署手册（环境依赖、安装步骤、配置说明）；
+		\item 用户操作手册（功能说明、操作流程、常见问题解答）；
+		\item 系统测试报告（测试用例、测试结果、缺陷修复记录）。
+	\end{itemize}
+
+	\subsection{标准与法律合规性}
+	\begin{itemize}
+		\item 开发遵循 GB/T 9385-2008 需求规格规范；
+		\item 参考文献格式符合 GB/T 7714-2015 国家标准；
+		\item 代码质量符合阿里巴巴 Java 开发手册；
+		\item 文档格式符合 ISO/IEC 29500（Office Open XML）与 ISO 32000（PDF）；
+		\item 系统遵守《网络安全法》《个人信息保护法》，严格保护用户信息安全；
+		\item 论文版权归学生本人所有，系统不主张任何知识产权。
+	\end{itemize}
+
+	\section{附录：论文模板章节结构示例}
+
+	以本科毕业论文模板为例，预设章节结构如下：
+
+	\begin{enumerate}
+		\item 封面（自动生成：标题、姓名、学号、学院、专业、指导教师、提交日期）
+		\item 原创声明（固定模板，学生签名确认）
+		\item 中文摘要与关键词（学生填写，3-5 个关键词）
+		\item 英文摘要与关键词（对应中文翻译）
+		\item 目录（系统自动生成）
+		\item 第1章 绪论
+		\begin{enumerate}
+			\item 1.1 研究背景与意义
+			\item 1.2 国内外研究现状
+			\item 1.3 研究内容与方法
+		\end{enumerate}
+		\item 第2章 相关理论基础
+		\item 第3章 系统分析与设计
+		\item 第4章 系统实现
+		\item 第5章 系统测试与分析
+		\item 第6章 总结与展望
+		\item 参考文献（按 GB/T 7714-2015 格式自动排版）
+		\item 致谢
+		\item 附录
+	\end{enumerate}
+
+	参考文献格式示例（GB/T 7714-2015）：
+	\begin{itemize}
+		\item 期刊论文：作者. 题名[J]. 刊名, 年, 卷(期): 页码.
+		\item 专著：作者. 书名[M]. 出版地: 出版社, 出版年.
+		\item 学位论文：作者. 题名[D]. 保存地点: 保存单位, 年份.
+	\end{itemize}
 
 \end{document}
