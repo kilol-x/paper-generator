@@ -293,3 +293,4 @@ if current_paper.creator_id != current_uid:
 设计全局统一的 AOP 日志切面。凡是触发用户登录、管理员发布/下架模板、学生提交论文、教师评定分数等高危、核心动作，基础架构自动拦截并异步输出审计日志至 \texttt{sys\_operation.log}。
 \subsection{配置项设计}
 包含 JWT 过期时间（默认 2 小时）、数据库物理连接池上限等核心参数，统一通过外部配置文件维护。
+\end{document}
