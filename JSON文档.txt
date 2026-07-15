@@ -1,0 +1,266 @@
+structureJson（章节结构）
+说明：required=是否必填，visible=是否在模板中显示该节，两者独立控制。
+{
+  "sections": [
+    {
+      "key": "cover",
+      "name": "封面",
+      "required": true,
+      "visible": true,
+      "editable": false,
+      "order": 1,
+      "note": "由封面字段配置自动渲染，学生不可直接编辑"
+    },
+    {
+      "key": "declaration",
+      "name": "原创声明",
+      "required": true,
+      "visible": true,
+      "editable": false,
+      "order": 2,
+      "note": "固定文本，不可修改"
+    },
+    {
+      "key": "abstract_zh",
+      "name": "中文摘要",
+      "required": true,
+      "visible": true,
+      "editable": true,
+      "order": 3
+    },
+    {
+      "key": "keywords_zh",
+      "name": "中文关键词",
+      "required": true,
+      "visible": true,
+      "editable": true,
+      "order": 4,
+      "note": "关键词之间用分号分隔"
+    },
+    {
+      "key": "abstract_en",
+      "name": "英文摘要",
+      "required": true,
+      "visible": true,
+      "editable": true,
+      "order": 5
+    },
+    {
+      "key": "keywords_en",
+      "name": "英文关键词",
+      "required": true,
+      "visible": true,
+      "editable": true,
+      "order": 6
+    },
+    {
+      "key": "toc",
+      "name": "目录",
+      "required": true,
+      "visible": true,
+      "editable": false,
+      "order": 7,
+      "note": "由系统根据章节标题自动生成，不可手动编辑"
+    },
+    {
+      "key": "chapters",
+      "name": "正文",
+      "required": true,
+      "visible": true,
+      "editable": true,
+      "order": 8,
+      "multiLevel": true,
+      "maxLevel": 3,
+      "note": "支持最多三级标题，学生可自由增删章节"
+    },
+    {
+      "key": "references",
+      "name": "参考文献",
+      "required": true,
+      "visible": true,
+      "editable": true,
+      "order": 9,
+      "note": "由参考文献模块单独管理，此处仅展示"
+    },
+    {
+      "key": "appendix",
+      "name": "附录",
+      "required": false,
+      "visible": true,
+      "editable": true,
+      "order": 10,
+      "note": "required=false表示学生可选填；如需在模板中隐藏此节，将visible设为false"
+    }
+  ]
+}
+
+================================================================================
+
+formatJson（格式配置）
+说明：header.text 支持占位符 {collegeName}（渲染时替换为学院名称）。
+{
+  "page": {
+    "size": "A4",
+    "marginTop": 2.54,
+    "marginBottom": 2.54,
+    "marginLeft": 3.17,
+    "marginRight": 3.17,
+    "unit": "cm"
+  },
+  "body": {
+    "font": "宋体",
+    "fontSize": 12,
+    "lineSpacing": 1.5,
+    "lineSpacingRule": "multiple",
+    "firstLineIndent": 2,
+    "alignment": "justify"
+  },
+  "heading1": {
+    "font": "黑体",
+    "fontSize": 16,
+    "bold": true,
+    "alignment": "center",
+    "spaceBefore": 24,
+    "spaceAfter": 18,
+    "numbering": true
+  },
+  "heading2": {
+    "font": "黑体",
+    "fontSize": 14,
+    "bold": true,
+    "alignment": "left",
+    "spaceBefore": 18,
+    "spaceAfter": 12,
+    "numbering": true
+  },
+  "heading3": {
+    "font": "黑体",
+    "fontSize": 12,
+    "bold": true,
+    "alignment": "left",
+    "spaceBefore": 12,
+    "spaceAfter": 6,
+    "numbering": true
+  },
+  "abstract": {
+    "titleFont": "黑体",
+    "titleFontSize": 16,
+    "titleAlignment": "center",
+    "bodyFont": "宋体",
+    "bodyFontSize": 12,
+    "lineSpacing": 1.5
+  },
+  "caption": {
+    "font": "宋体",
+    "fontSize": 10.5,
+    "alignment": "center",
+    "spaceBefore": 6,
+    "spaceAfter": 6
+  },
+  "references": {
+    "font": "宋体",
+    "fontSize": 10.5,
+    "lineSpacing": 1.5,
+    "numberFormat": "[N]",
+    "hangingIndent": true,
+    "hangingIndentSize": 2,
+    "note": "numberFormat中N为序号占位符，hangingIndent=true表示悬挂缩进"
+  },
+  "coverTitle": {
+    "font": "黑体",
+    "fontSize": 18,
+    "bold": true,
+    "alignment": "center"
+  },
+  "coverBody": {
+    "font": "宋体",
+    "fontSize": 14,
+    "alignment": "left",
+    "lineSpacing": 2.0
+  },
+  "header": {
+    "text": "{collegeName}本科毕业论文",
+    "font": "宋体",
+    "fontSize": 9,
+    "alignment": "center",
+    "showDivider": true,
+    "note": "{collegeName}为占位符，渲染时自动替换为对应学院名称"
+  },
+  "footer": {
+    "showPageNumber": true,
+    "pageNumberFormat": "arabic",
+    "alignment": "center",
+    "font": "Times New Roman",
+    "fontSize": 9
+  }
+}
+
+================================================================================
+
+coverFields（封面字段配置）
+说明：仅定义字段内容，样式统一由 formatJson.coverTitle / formatJson.coverBody 控制。
+[
+  {
+    "key": "title",
+    "label": "论文题目",
+    "type": "text",
+    "required": true,
+    "maxLength": 100,
+    "order": 1
+  },
+  {
+    "key": "college",
+    "label": "学院",
+    "type": "text",
+    "required": true,
+    "maxLength": 50,
+    "order": 2
+  },
+  {
+    "key": "major",
+    "label": "专业",
+    "type": "text",
+    "required": true,
+    "maxLength": 50,
+    "order": 3
+  },
+  {
+    "key": "studentName",
+    "label": "学生姓名",
+    "type": "text",
+    "required": true,
+    "maxLength": 20,
+    "order": 4
+  },
+  {
+    "key": "studentId",
+    "label": "学号",
+    "type": "text",
+    "required": true,
+    "maxLength": 20,
+    "order": 5
+  },
+  {
+    "key": "supervisor",
+    "label": "指导老师",
+    "type": "text",
+    "required": true,
+    "maxLength": 20,
+    "order": 6
+  },
+  {
+    "key": "supervisorTitle",
+    "label": "指导老师职称",
+    "type": "text",
+    "required": false,
+    "maxLength": 20,
+    "order": 7
+  },
+  {
+    "key": "date",
+    "label": "完成日期",
+    "type": "date",
+    "required": true,
+    "order": 8
+  }
+]
