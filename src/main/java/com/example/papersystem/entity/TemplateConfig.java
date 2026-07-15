@@ -10,33 +10,28 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "tb_user", uniqueConstraints = @UniqueConstraint(columnNames = "username"))
+@Table(name = "tb_template_config",
+        uniqueConstraints = @UniqueConstraint(columnNames = "template_id"))
 @EntityListeners(AuditingEntityListener.class)
-public class User {
+public class TemplateConfig {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 50)
-    private String username;
+    @Column(name = "template_id", nullable = false)
+    private Long templateId;
 
-    @Column(nullable = false, length = 100)
-    private String password;
+    @Lob
+    @Column(name = "structure_json", columnDefinition = "LONGTEXT")
+    private String structureJson;
 
-    @Column(length = 50)
-    private String nickname;
+    @Lob
+    @Column(name = "format_json", columnDefinition = "LONGTEXT")
+    private String formatJson;
 
-    @Column(nullable = false, length = 20)
-    private String role;
-
-    @Column(name = "dept_id")
-    private Integer deptId;
-
-    @Column(length = 100)
-    private String email;
-
-    @Column(nullable = false)
-    private Integer status;
+    @Lob
+    @Column(name = "cover_fields", columnDefinition = "LONGTEXT")
+    private String coverFields;
 
     @CreatedDate
     @Column(name = "create_time", updatable = false)

@@ -1,127 +1,120 @@
 package com.example.papersystem.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.papersystem.common.Result;
 import com.example.papersystem.entity.Template;
 import com.example.papersystem.entity.TemplateConfig;
-import com.example.papersystem.mapper.TemplateConfigMapper;
-import com.example.papersystem.mapper.TemplateMapper;
+import com.example.papersystem.repository.TemplateConfigRepository;
+import com.example.papersystem.repository.TemplateRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/admin/templates")
 public class TemplateController {
 
     @Autowired
-    private TemplateMapper templateMapper;
+    private TemplateRepository templateRepository;
 
     @Autowired
-    private TemplateConfigMapper templateConfigMapper;
+    private TemplateConfigRepository templateConfigRepository;
 
     @GetMapping
     public Result<List<Template>> list(@RequestParam(required = false) Integer collegeId,
                                        @RequestParam(required = false) String type,
                                        @RequestParam(required = false) Integer status) {
-        LambdaQueryWrapper<Template> wrapper = new LambdaQueryWrapper<>();
-        if (collegeId != null) wrapper.eq(Template::getCollegeId, collegeId);
-        if (type != null && !type.isEmpty()) wrapper.eq(Template::getType, type);
-        if (status != null) wrapper.eq(Template::getStatus, status);
-        wrapper.orderByDesc(Template::getUpdateTime);
-        return Result.success("查询成功", templateMapper.selectList(wrapper));
+        List<Template> data = templateRepository.findAll(
+                TemplateRepository.filter(collegeId, type, status));
+        return Result.success("查询成功", data);
     }
 
     @GetMapping("/{id}")
     public Result<Map<String, Object>> detail(@PathVariable Long id) {
-        Template template = templateMapper.selectById(id);
-        if (template == null) {
+        Optional<Template> opt = templateRepository.findById(id);
+        if (opt.isEmpty()) {
             return Result.error(404, "模板不存在");
         }
-        TemplateConfig config = templateConfigMapper.selectOne(
-                new LambdaQueryWrapper<TemplateConfig>().eq(TemplateConfig::getTemplateId, id));
-
         Map<String, Object> data = new HashMap<>();
-        data.put("template", template);
-        data.put("config", config);
+        data.put("template", opt.get());
+        data.put("config", templateConfigRepository.findByTemplateId(id).orElse(null));
         return Result.success("查询成功", data);
     }
 
     @PostMapping
+    @Transactional
     public Result<Long> add(@RequestBody Map<String, Object> body) {
         Template template = extractTemplate(body);
         if (template.getName() == null || template.getType() == null || template.getCollegeId() == null) {
             return Result.error(400, "模板名称、类型、所属学院不能为空");
         }
-        template.setStatus(template.getStatus() == null ? 0 : template.getStatus());
+        if (template.getStatus() == null) template.setStatus(0);
         template.setVersion(1);
-        template.setCreateTime(LocalDateTime.now());
-        template.setUpdateTime(LocalDateTime.now());
-        templateMapper.insert(template);
+        templateRepository.save(template);
 
         TemplateConfig config = extractConfig(body);
         config.setTemplateId(template.getId());
-        config.setCreateTime(LocalDateTime.now());
-        config.setUpdateTime(LocalDateTime.now());
-        templateConfigMapper.insert(config);
+        templateConfigRepository.save(config);
 
         return Result.success("新增成功", template.getId());
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public Result<String> update(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        Template existing = templateMapper.selectById(id);
-        if (existing == null) {
+        Optional<Template> opt = templateRepository.findById(id);
+        if (opt.isEmpty()) {
             return Result.error(404, "模板不存在");
         }
+        Template existing = opt.get();
+        Template patch = extractTemplate(body);
+        if (patch.getName() != null) existing.setName(patch.getName());
+        if (patch.getType() != null) existing.setType(patch.getType());
+        if (patch.getCollegeId() != null) existing.setCollegeId(patch.getCollegeId());
+        if (patch.getDescription() != null) existing.setDescription(patch.getDescription());
+        if (patch.getStatus() != null) existing.setStatus(patch.getStatus());
+        existing.setVersion(existing.getVersion() + 1);
+        templateRepository.save(existing);
 
-        Template template = extractTemplate(body);
-        template.setId(id);
-        template.setVersion(existing.getVersion() + 1);
-        template.setUpdateTime(LocalDateTime.now());
-        templateMapper.updateById(template);
+        TemplateConfig patchConfig = extractConfig(body);
+        TemplateConfig config = templateConfigRepository.findByTemplateId(id)
+                .orElseGet(() -> {
+                    TemplateConfig c = new TemplateConfig();
+                    c.setTemplateId(id);
+                    return c;
+                });
+        if (patchConfig.getStructureJson() != null) config.setStructureJson(patchConfig.getStructureJson());
+        if (patchConfig.getFormatJson() != null) config.setFormatJson(patchConfig.getFormatJson());
+        if (patchConfig.getCoverFields() != null) config.setCoverFields(patchConfig.getCoverFields());
+        templateConfigRepository.save(config);
 
-        TemplateConfig config = extractConfig(body);
-        TemplateConfig existingConfig = templateConfigMapper.selectOne(
-                new LambdaQueryWrapper<TemplateConfig>().eq(TemplateConfig::getTemplateId, id));
-        if (existingConfig != null) {
-            config.setId(existingConfig.getId());
-            config.setTemplateId(id);
-            config.setUpdateTime(LocalDateTime.now());
-            templateConfigMapper.updateById(config);
-        } else {
-            config.setTemplateId(id);
-            config.setCreateTime(LocalDateTime.now());
-            config.setUpdateTime(LocalDateTime.now());
-            templateConfigMapper.insert(config);
-        }
         return Result.success("修改成功", null);
     }
 
     @PutMapping("/{id}/status")
     public Result<String> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
-        Template template = templateMapper.selectById(id);
-        if (template == null) {
+        Optional<Template> opt = templateRepository.findById(id);
+        if (opt.isEmpty()) {
             return Result.error(404, "模板不存在");
         }
+        Template template = opt.get();
         template.setStatus(status);
-        template.setUpdateTime(LocalDateTime.now());
-        templateMapper.updateById(template);
+        templateRepository.save(template);
         return Result.success(status == 1 ? "已启用" : "已停用", null);
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public Result<String> delete(@PathVariable Long id) {
-        if (templateMapper.selectById(id) == null) {
+        if (!templateRepository.existsById(id)) {
             return Result.error(404, "模板不存在");
         }
-        templateMapper.deleteById(id);
-        templateConfigMapper.delete(
-                new LambdaQueryWrapper<TemplateConfig>().eq(TemplateConfig::getTemplateId, id));
+        templateRepository.deleteById(id);
+        templateConfigRepository.deleteByTemplateId(id);
         return Result.success("删除成功", null);
     }
 
