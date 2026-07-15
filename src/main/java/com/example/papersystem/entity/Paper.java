@@ -1,5 +1,6 @@
 package com.example.papersystem.entity;
 
+<<<<<<< HEAD
 import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
@@ -37,5 +38,23 @@ public class Paper {
 
     @LastModifiedDate
     @Column(name = "updated_at")
+=======
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Data;
+import java.time.LocalDateTime;
+
+@Data
+@TableName("tb_paper")
+public class Paper {
+    @TableId(type = IdType.AUTO)
+    private Long id;
+    private String title;
+    private Long studentId;
+    private String content;
+    private String status; // DRAFT, SUBMITTED, REVIEWED, APPROVED, REJECTED
+    private LocalDateTime createdAt;
+>>>>>>> 2e14bb3414e7a360b48c444f56eb6df4daf1f733
     private LocalDateTime updatedAt;
 }

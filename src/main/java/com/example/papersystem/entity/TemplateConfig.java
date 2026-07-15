@@ -21,19 +21,28 @@ public class TemplateConfig {
     @Column(name = "template_id", nullable = false)
     private Long templateId;
 
+<<<<<<< HEAD
     // {"sections":[{key,name,required,visible,editable,order,multiLevel?,maxLevel?,note?},...]}
     // required=学生是否必填；visible=模板中是否显示该节（两者独立）
+=======
+>>>>>>> 2e14bb3414e7a360b48c444f56eb6df4daf1f733
     @Lob
     @Column(name = "structure_json", columnDefinition = "LONGTEXT")
     private String structureJson;
 
+<<<<<<< HEAD
     // 包含 page/body/heading1~3/abstract/caption/references/coverTitle/coverBody/header/footer
     // header.text 支持占位符 {collegeName}；references.numberFormat 用 [N] 表示编号位置
+=======
+>>>>>>> 2e14bb3414e7a360b48c444f56eb6df4daf1f733
     @Lob
     @Column(name = "format_json", columnDefinition = "LONGTEXT")
     private String formatJson;
 
+<<<<<<< HEAD
     // [{key,label,type(text|date),required,maxLength,order},...] 仅定义字段，样式由 formatJson.coverTitle/coverBody 控制
+=======
+>>>>>>> 2e14bb3414e7a360b48c444f56eb6df4daf1f733
     @Lob
     @Column(name = "cover_fields", columnDefinition = "LONGTEXT")
     private String coverFields;
