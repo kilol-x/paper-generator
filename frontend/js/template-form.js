@@ -8,8 +8,9 @@ const DEFAULT_SECTIONS = [
   { key:"keywords_en", name:"英文关键词",required:true,  visible:true, editable:true,  order:6  },
   { key:"toc",         name:"目录",      required:true,  visible:true, editable:false, order:7  },
   { key:"chapters",    name:"正文",      required:true,  visible:true, editable:true,  order:8, multiLevel:true, maxLevel:3 },
-  { key:"references",  name:"参考文献",  required:true,  visible:true, editable:true,  order:9  },
-  { key:"appendix",    name:"附录",      required:false, visible:true, editable:true,  order:10 },
+  { key:"references",     name:"参考文献", required:true,  visible:true, editable:true,  order:9  },
+  { key:"acknowledgement",name:"致谢",     required:false, visible:true, editable:true,  order:10 },
+  { key:"appendix",       name:"附录",     required:false, visible:true, editable:true,  order:11 },
 ];
 
 const DEFAULT_COVER_FIELDS = [
@@ -30,7 +31,8 @@ const DEFAULT_FORMAT = {
   heading2:   { font:"黑体", fontSize:14, bold:true,  alignment:"left",   spaceBefore:18, spaceAfter:12, numbering:true },
   heading3:   { font:"黑体", fontSize:12, bold:true,  alignment:"left",   spaceBefore:12, spaceAfter:6,  numbering:true },
   abstract:   { titleFont:"黑体", titleFontSize:16, titleAlignment:"center", bodyFont:"宋体", bodyFontSize:12, lineSpacing:1.5 },
-  references: { font:"宋体", fontSize:10.5, lineSpacing:1.5, numberFormat:"[N]", hangingIndent:true, hangingIndentSize:2 },
+  references: { titleFont:"黑体", titleFontSize:16, titleAlignment:"center", font:"宋体", fontSize:10.5, lineSpacing:1.5, numberFormat:"[N]", hangingIndent:true, hangingIndentSize:2 },
+  acknowledgement: { titleFont:"黑体", titleFontSize:16, titleAlignment:"center", bodyFont:"宋体", bodyFontSize:12, lineSpacing:1.5, firstLineIndent:2 },
   coverTitle: { font:"黑体", fontSize:18, bold:true, alignment:"center" },
   coverBody:  { font:"宋体", fontSize:14, alignment:"left", lineSpacing:2.0 },
   header:     { text:"{collegeName}本科毕业论文", font:"宋体", fontSize:9, alignment:"center", showDivider:true },
@@ -80,11 +82,20 @@ const FORMAT_SCHEMA = [
     { key:"lineSpacing", label:"行间距", type:"number", step:"0.1" },
   ]},
   { group:"references", label:"参考文献", fields:[
-    { key:"font", label:"字体", type:"text" }, { key:"fontSize", label:"字号", type:"number", step:"0.5" },
+    { key:"titleFont", label:"标题字体", type:"text" }, { key:"titleFontSize", label:"标题字号", type:"number", step:"0.5" },
+    { key:"titleAlignment", label:"标题对齐", type:"select", options:["center","left"] },
+    { key:"font", label:"正文字体", type:"text" }, { key:"fontSize", label:"正文字号", type:"number", step:"0.5" },
     { key:"lineSpacing", label:"行间距", type:"number", step:"0.1" },
     { key:"numberFormat", label:"编号格式", type:"text", hint:"用[N]表示序号" },
     { key:"hangingIndent", label:"悬挂缩进", type:"checkbox" },
     { key:"hangingIndentSize", label:"缩进量(字符)", type:"number" },
+  ]},
+  { group:"acknowledgement", label:"致谢样式", fields:[
+    { key:"titleFont", label:"标题字体", type:"text" }, { key:"titleFontSize", label:"标题字号", type:"number", step:"0.5" },
+    { key:"titleAlignment", label:"标题对齐", type:"select", options:["center","left"] },
+    { key:"bodyFont", label:"正文字体", type:"text" }, { key:"bodyFontSize", label:"正文字号", type:"number", step:"0.5" },
+    { key:"lineSpacing", label:"行间距", type:"number", step:"0.1" },
+    { key:"firstLineIndent", label:"首行缩进(字符)", type:"number", step:"1" },
   ]},
   { group:"coverTitle", label:"封面标题样式", fields:[
     { key:"font", label:"字体", type:"text" }, { key:"fontSize", label:"字号", type:"number", step:"0.5" },

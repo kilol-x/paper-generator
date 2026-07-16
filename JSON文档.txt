@@ -83,12 +83,21 @@ structureJson（章节结构）
       "note": "由参考文献模块单独管理，此处仅展示"
     },
     {
+      "key": "acknowledgement",
+      "name": "致谢",
+      "required": false,
+      "visible": true,
+      "editable": true,
+      "order": 10,
+      "note": "学生可选填，用于表达对指导老师、家人朋友等的感谢"
+    },
+    {
       "key": "appendix",
       "name": "附录",
       "required": false,
       "visible": true,
       "editable": true,
-      "order": 10,
+      "order": 11,
       "note": "required=false表示学生可选填；如需在模板中隐藏此节，将visible设为false"
     }
   ]
@@ -158,13 +167,26 @@ formatJson（格式配置）
     "spaceAfter": 6
   },
   "references": {
+    "titleFont": "黑体",
+    "titleFontSize": 16,
+    "titleAlignment": "center",
     "font": "宋体",
     "fontSize": 10.5,
     "lineSpacing": 1.5,
     "numberFormat": "[N]",
     "hangingIndent": true,
     "hangingIndentSize": 2,
-    "note": "numberFormat中N为序号占位符，hangingIndent=true表示悬挂缩进"
+    "note": "title*为参考文献标题样式；numberFormat中N为序号占位符，hangingIndent=true表示悬挂缩进"
+  },
+  "acknowledgement": {
+    "titleFont": "黑体",
+    "titleFontSize": 16,
+    "titleAlignment": "center",
+    "bodyFont": "宋体",
+    "bodyFontSize": 12,
+    "lineSpacing": 1.5,
+    "firstLineIndent": 2,
+    "note": "致谢样式，参照摘要格式设置标题字段与正文字段"
   },
   "coverTitle": {
     "font": "黑体",
