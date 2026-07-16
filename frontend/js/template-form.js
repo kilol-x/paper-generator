@@ -256,9 +256,9 @@ const TemplateForm = {
         + "<input class=\"form-control cf-maxlen\" type=\"number\" value=\"" + (f.maxLength || "") + "\" data-field=\"maxLength\" />"
         + "<div class=\"cf-req\"><input type=\"checkbox\"" + checked + " data-field=\"required\" title=\"必填\" /></div>"
         + "<div class=\"cf-actions\">"
-        + "<button class=\"btn-icon\" onclick=\"TemplateForm._moveCover(" + i + ",-1)\" title=\"上移\">&#8593;</button>"
-        + "<button class=\"btn-icon\" onclick=\"TemplateForm._moveCover(" + i + ",1)\" title=\"下移\">&#8595;</button>"
-        + "<button class=\"btn-icon\" onclick=\"TemplateForm._removeCover(" + i + ")\" title=\"删除\" style=\"color:var(--danger)\">&#10005;</button>"
+        + "<button class=\"btn-icon\" onclick=\"TemplateForm._moveCover(" + i + ",-1)\" title=\"上移\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"><path stroke-width=\"2\" d=\"M12 19V5M5 12l7-7 7 7\"/></svg></button>"
+        + "<button class=\"btn-icon\" onclick=\"TemplateForm._moveCover(" + i + ",1)\" title=\"下移\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"><path stroke-width=\"2\" d=\"M12 5v14M19 12l-7 7-7-7\"/></svg></button>"
+        + "<button class=\"btn-icon\" onclick=\"TemplateForm._removeCover(" + i + ")\" title=\"删除\" style=\"color:var(--danger)\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\"><path stroke-width=\"2\" d=\"M18 6L6 18M6 6l12 12\"/></svg></button>"
         + "</div></div>";
     }).join("");
   },

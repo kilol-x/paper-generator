@@ -495,8 +495,8 @@ function initUserInfo() {
   try {
     const info = JSON.parse(localStorage.getItem('userInfo') || '{}');
     if (info.nickname) {
-      document.getElementById('sidebar-username').textContent = info.nickname;
-      document.getElementById('topbar-username').textContent = info.nickname;
+      const nameEl = document.getElementById('sidebar-username');
+      if (nameEl) nameEl.textContent = info.nickname;
     }
   } catch (_) {}
 }
