@@ -175,7 +175,7 @@ const TemplateForm = {
       + "<textarea class=\"form-control\" id=\"f-tpl-desc\" placeholder=\"选填\" rows=\"3\"></textarea></div>";
 
     const tab1 = "<div style=\"margin-bottom:10px;display:flex;justify-content:space-between;align-items:center\">"
-      + "<span style=\"font-size:13px;color:var(--gray-500)\">定义论文封面的填写字段</span>"
+      + "<span style=\"font-size:13px;color:var(--text-mute)\">定义论文封面的填写字段</span>"
       + "<button class=\"btn btn-sm btn-secondary\" onclick=\"TemplateForm._addCoverField()\">+ 新增字段</button></div>"
       + "<div id=\"cover-fields-list\"></div>";
 
@@ -187,7 +187,7 @@ const TemplateForm = {
         + (locked ? "<td><span class=\"section-locked\">固定</span></td>"
                   : "<td><input type=\"checkbox\" id=\"sec-editable-" + s.key + "\"" + (s.editable ? " checked" : "") + " /></td>")
         + (s.key === "chapters"
-          ? "<td><input type=\"number\" id=\"sec-maxlevel-chapters\" value=\"" + (s.maxLevel || 3) + "\" min=\"1\" max=\"5\" style=\"width:50px;padding:4px;border:1px solid var(--gray-300);border-radius:4px;font-size:13px\" /></td>"
+          ? "<td><input type=\"number\" id=\"sec-maxlevel-chapters\" value=\"" + (s.maxLevel || 3) + "\" min=\"1\" max=\"5\" style=\"width:50px;padding:4px;border:1px solid var(--border-strong);border-radius:4px;font-size:13px\" /></td>"
           : "<td></td>")
         + "</tr>";
     }).join("");
@@ -365,7 +365,7 @@ const TemplateDetail = {
     if (cfg.structureJson) {
       try {
         const secs = JSON.parse(cfg.structureJson).sections || [];
-        const yn = v => v ? "<span style=\"color:var(--success)\">是</span>" : "<span style=\"color:var(--gray-400)\">否</span>";
+        const yn = v => v ? "<span style=\"color:var(--success)\">是</span>" : "<span style=\"color:var(--text-dim)\">否</span>";
         secHtml = "<table style=\"width:100%\"><thead><tr><th>章节名称</th><th>必填</th><th>显示</th><th>可编辑</th></tr></thead><tbody>"
           + secs.map(s => "<tr><td>" + escHtml(s.name) + "</td><td>" + yn(s.required) + "</td><td>" + yn(s.visible) + "</td><td>" + yn(s.editable) + "</td></tr>").join("") + "</tbody></table>";
       } catch(e2) { secHtml = "解析失败"; }
