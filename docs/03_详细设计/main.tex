@@ -2,16 +2,16 @@
 \documentclass{../template/softeng}
 
 \begin{document}
-	
+
 	% 封面：文档名、项目名、版本、编写人、审核人、审批人、日期
 	\doccover{详细设计说明书}
 	{在线论文文档自动生成工具}
 	{V1.2}
-	
+
 	% 目录
 	\tableofcontents
 	\newpage
-	
+
 	% 修订记录
 	\begin{revrecord}
 		V1.0 & 2026-07-15 & 郑羽婷 & 全组 & 初稿完成，完成用户中心、JWT鉴权、RBAC权限控制、核心加盐哈希算法及底层数据库物理表详细设计 \\
@@ -20,7 +20,7 @@
 		\hline
 		V1.2 & 2026-07-16 & 杨凯悦 &全组 & 扩充内容 \\
 		\hline
-        V1.2 & 2026-07-16 & 郑羽婷 &全组 & 新增部署方案与统一错误码规范，完成终稿 \\
+        V1.3 & 2026-07-16 & 郑羽婷 &全组 & 新增部署方案与统一错误码规范，完成终稿 \\
 		\hline
 	\end{revrecord}
 
@@ -51,13 +51,13 @@
 	\subsection{参考资料}
 	\begin{enumerate}
 		\item GB/T 8567-2006 计算机软件文档编制规范——详细设计说明书；
-		\item 《在线论文文档自动生成工具需求规格说明书》V1.0；
-		\item 《在线论文文档自动生成工具概要设计说明书》V1.0；
+		\item 《在线论文文档自动生成工具需求规格说明书》V1.3；
+		\item 《在线论文文档自动生成工具概要设计说明书》V1.1；
 		\item RFC 7519: JSON Web Token (JWT) 技术标准规范；
-		\item GB/T 7714-2015 信息与文献 参考文献著录规则；
-		\item Apache POI 5.x Word文档生成技术文档；
-		\item iText 7.x PDF文档生成技术文档。
-	\end{enumerate}
+        \item Spring Security 架构参考手册 (RBAC与鉴权实现)；
+        \item MyBatis-Plus 数据库持久化层开发规范；
+        \item 常用办公文档处理技术规范 (Apache POI/iText)。
+    \end{enumerate}
 
 
 	% ============================================================
@@ -1678,7 +1678,7 @@
     \caption{系统容器化部署架构示意图}
     \label{fig:deployment}
 \end{figure}
-	
+
 	\subsection{系统监控设计}
 	为了确保系统在高并发场景下的稳定性，设计了基础架构监控模块：
 	\begin{itemize}
@@ -1688,7 +1688,7 @@
 		\item \textbf{健康检查}：提供\texttt{/actuator/health}端点，返回系统健康状态；
 		\item \textbf{指标暴露}：提供\texttt{/actuator/metrics}端点，暴露系统运行指标。
 	\end{itemize}
-	
+
 	\subsection{部署与运维}
 	\begin{itemize}
 		\item 支持Docker容器化部署；
@@ -1697,5 +1697,5 @@
 		\item 支持日志集中收集（ELK）；
 		\item 支持应用监控（Prometheus + Grafana）。
 	\end{itemize}
-	
+
 \end{document}
