@@ -135,8 +135,8 @@ const PageColleges = {
       <tr>
         <td>${escHtml(c.id)}</td>
         <td><strong>${escHtml(c.name)}</strong></td>
-        <td style="color:var(--gray-500)">${escHtml(c.description || '-')}</td>
-        <td style="color:var(--gray-400);font-size:13px">${fmtDate(c.createTime)}</td>
+        <td style="color:var(--text-mute)">${escHtml(c.description || '-')}</td>
+        <td style="color:var(--text-dim);font-size:13px">${fmtDate(c.createTime)}</td>
         <td class="col-actions">
           <button class="btn btn-sm btn-secondary" onclick="PageColleges._openEdit(${c.id})">编辑</button>
           <button class="btn btn-sm btn-danger" onclick="PageColleges._confirmDelete(${c.id}, '${escHtml(c.name)}')">删除</button>
@@ -228,7 +228,7 @@ const PageColleges = {
     Modal.open({
       title: '确认删除',
       body: `<p>确定要删除学院「<strong>${escHtml(name)}</strong>」吗？<br/>
-             <span style="color:var(--gray-400);font-size:13px">删除后无法恢复，请确认该学院下没有关联模板。</span></p>`,
+             <span style="color:var(--text-dim);font-size:13px">删除后无法恢复，请确认该学院下没有关联模板。</span></p>`,
       confirmText: '删除',
       onConfirm: () => this._doDelete(id),
     });
@@ -379,8 +379,8 @@ const PageTemplates = {
         <td><span class="badge badge-primary">${escHtml(t.type)}</span></td>
         <td>${escHtml(this._collegeName(t.collegeId))}</td>
         <td>${this._statusBadge(t.status)}</td>
-        <td style="color:var(--gray-400)">v${escHtml(t.version)}</td>
-        <td style="color:var(--gray-400);font-size:13px">${fmtDate(t.updateTime)}</td>
+        <td style="color:var(--text-dim)">v${escHtml(t.version)}</td>
+        <td style="color:var(--text-dim);font-size:13px">${fmtDate(t.updateTime)}</td>
         <td class="col-actions">
           <button class="btn btn-sm btn-secondary" onclick="PageTemplates._openDetail(${t.id})">详情</button>
           <button class="btn btn-sm btn-secondary" onclick="PageTemplates._openEdit(${t.id})">编辑</button>
@@ -446,7 +446,7 @@ const PageTemplates = {
     Modal.open({
       title: '确认删除',
       body: `<p>确定要删除模板「<strong>${escHtml(name)}</strong>」吗？<br/>
-             <span style="color:var(--gray-400);font-size:13px">删除后不可恢复，已使用该模板的论文不受影响。</span></p>`,
+             <span style="color:var(--text-dim);font-size:13px">删除后不可恢复，已使用该模板的论文不受影响。</span></p>`,
       confirmText: '删除',
       onConfirm: () => this._doDelete(id),
     });

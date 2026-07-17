@@ -79,6 +79,9 @@ input, select, textarea { font: inherit; color: inherit; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 
 :focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--r); }
+/* 搜索框内的 input 焦点样式由外层 .search-box:focus-within 统一接管，避免内外双重光圈 */
+.search-input:focus,
+.search-input:focus-visible { outline: none; box-shadow: none; }
 button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 @media (prefers-reduced-motion: reduce) {
