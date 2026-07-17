@@ -20,96 +20,456 @@
 		\hline
 	\end{revrecord}
 	
-	\section{引言}
-	\subsection{编写目的}
-	本文档为在线OJ在线判题系统概要设计说明书，基于前期软件需求规格说明书完成系统顶层架构设计。文档用于明确系统整体模块划分、业务处理流程、内外接口规范、数据库数据结构、运行控制方案、异常处理、安全及维护设计，为后续详细设计、编码开发、单元测试提供设计依据。
-	本文档阅读对象包含项目负责人、系统架构设计师、前后端开发工程师、测试工程师。
-	
-	\subsection{项目背景}
-	本系统为高校大二软件工程实训开发项目，开发主体为校内实训开发小组，服务于高校程序设计课程教师与在校学生。系统独立部署，无第三方业务系统对接，依靠Web服务、判题沙箱服务、关系型数据库实现完整在线编程、自动评测、教学管理业务闭环，用于支撑线上编程练习、作业自动批改、学情数据统计。
-	
-	\subsection{定义}
+\section{引言}
+\subsection{编写目的}
+本文档为在线OJ在线判题系统概要设计说明书，基于前期软件需求规格说明书完成系统顶层架构设计。文档用于明确系统整体模块划分、业务处理流程、内外接口规范、数据库数据结构、运行控制方案、异常处理、安全及维护设计，为后续详细设计、编码开发、单元测试提供设计依据。
+
+本文档阅读对象包含项目负责人、系统架构设计师、前后端开发工程师、测试工程师。
+
+\subsection{项目背景}
+本系统为高校大二软件工程实训开发项目，开发主体为校内实训开发小组，服务于高校程序设计课程教师与在校学生。系统独立部署，无第三方业务系统对接，依靠Web服务、判题沙箱服务、关系型数据库实现完整在线编程、自动评测、教学管理业务闭环，用于支撑线上编程练习、作业自动批改、学情数据统计。
+
+当前高校程序设计课程教学中，教师布置编程作业后需要人工逐一查看学生代码并手动运行测试，效率低下且难以保证评测标准的一致性。本系统通过自动化判题机制，能够大幅减轻教师批改负担，同时为学生提供即时反馈，提升学习效率。
+
+\subsection{定义}
+\begin{itemize}
+	\item OJ：Online Judge，在线程序自动判题系统；
+	\item AC：Accepted，代码通过全部测试用例；
+	item PE：Presentation Error，输出格式错误；
+	\item WA：Wrong Answer，答案错误；
+	\item TLE：Time Limit Exceeded，运行超时；
+	\item MLE：Memory Limit Exceeded，内存超限；
+	\item RE：Runtime Error，运行时错误；
+	\item CE：Compile Error，编译错误；
+	\item 判题沙箱：隔离执行用户代码的安全运行环境，限制资源访问，防范恶意代码破坏服务；
+	\item 测试用例：包含标准输入、预期输出、边界条件的程序评测数据集；
+	\item 判题任务队列：缓存待执行判题任务的异步调度队列；
+	\item RESTful API：前后端交互标准接口规范。
+\end{itemize}
+
+\subsection{参考资料}
+\begin{enumerate}
+	\item GB/T 9386-2008 计算机软件概要设计说明书规范；
+	\item 《在线OJ在线判题系统软件需求规格说明书》V2026.07；
+	\item 2026软件工程实训项目任务书；
+	\item Web前后端分离开发设计规范；
+	\item Linux沙箱安全隔离开发技术文档；
+	\item MySQL数据库设计开发规范。
+\end{enumerate}
+
+\section{任务概述}
+\subsection{目标}
+搭建一套前后端分离架构的在线编程自动判题平台，划分学生、教师两类角色；拆解系统为用户模块、题库模块、在线代码编辑与判题模块、提交记录统计模块、讨论区模块、系统监控管理模块；实现题库分级管理、在线代码提交、沙箱自动编译评测、刷题数据排行、师生交流讨论、教师后台运维监控全套能力，满足高校编程课程线上练习、自动批改、学情统计教学需求。
+
+\subsection{运行环境}
+\begin{itemize}
+	\item 服务端操作系统：Linux CentOS 7 / Windows Server 2019；
+	\item Web服务容器：Nginx、Tomcat；
+	\item 数据库：MySQL 8.0；
+	\item 判题依赖：GCC、Python、Java等多语言编译器、进程隔离沙箱程序；
+	\item 客户端环境：Chrome、Edge、Firefox主流现代浏览器；
+	\item 中间件：Redis（缓存、任务队列）。
+\end{itemize}
+
+\subsection{需求概述}
+系统分为学生端与教师管理端两大业务域：
+\begin{enumerate}
+	\item 学生端：账号注册登录、分级题库浏览、在线代码编写提交、自动判题结果反馈、个人提交记录与刷题统计、全站排行榜、题目讨论区发帖交流；
+	\item 教师端：题库增删改查、批量导入题目、测试用例配置、全量用户与提交行为监管、异常抄袭提交标记、平台运行状态可视化监控、公告发布、讨论区内容审核管理、教学统计报表导出。
+\end{enumerate}
+
+\subsection{条件与限制}
+\begin{enumerate}
+	\item 判题模块必须采用沙箱隔离机制，禁止用户代码直接读写服务器文件、访问网络；
+	\item 单份代码运行设置时间、内存双重上限，防止服务器资源耗尽；
+	\item 系统仅开放学生、教师两类角色，无游客完整答题权限；
+	\item 题库批量导入仅支持标准结构化文本文件，不支持自定义复杂格式；
+	\item 服务器硬件资源有限，并发判题任务存在最大并发阈值；
+	\item 所有接口需携带身份鉴权凭证，严格区分角色数据访问权限。
+\end{enumerate}
+
+\section{总体设计}
+\subsection{处理流程}
+\begin{enumerate}
+	\item 用户注册/登录鉴权，校验身份后跳转对应功能页面；
+	\item 学生浏览题库，选定题目进入在线代码编辑器，编写代码提交至后端；
+	\item 后端接收代码、题目ID，封装判题任务送入Redis任务队列；
+	\item 判题服务消费队列任务，调度沙箱隔离运行代码，加载对应测试用例逐组比对输出；
+	\item 收集判题状态、运行耗时、内存占用结果，写入数据库提交记录；
+	\item 前端轮询获取判题结果，展示评测状态、错误日志；
+	\item 系统同步更新个人解题统计、全站排行榜数据；
+	\item 教师登录后台，完成题库维护、用户监管、平台监控、讨论区管理操作；
+	\item 所有操作行为记录系统日志，异常数据触发预警提示。
+\end{enumerate}
+
+\subsection{总体结构和模块外部设计}
+系统整体采用分层架构，自上而下分为四层：前端展示层、应用服务层、判题服务层、数据持久层，拆分六大独立业务模块：
+
+\begin{enumerate}
+	\item 用户权限模块：账号注册登录、身份鉴权、角色权限控制、个人信息管理；
+	\item 题库管理模块：题目CRUD、难度标签管理、测试用例配置、批量导入导出；
+	\item 在线判题模块：在线代码编辑器、任务队列调度、沙箱编译运行、结果判定；
+	\item 数据统计排行模块：个人提交记录、解题统计、全站实时排行榜、教学报表；
+	\item 讨论与公告模块：题目讨论帖子、评论回复、全站公告发布、内容审核；
+	\item 系统运维监控模块：在线人数、判题队列、编译器负载、服务器健康监控、异常提交标记。
+\end{enumerate}
+
+\subsection{功能分配}
+\begin{itemize}
+	\item 用户权限模块：承担登录校验、账号管理、接口鉴权全部功能；
+	\item 题库管理模块：负责题目基础数据、测试用例、难度分类的存储与维护；
+	\item 在线判题模块：承载代码接收、异步调度、沙箱执行、结果比对核心逻辑；
+	\item 数据统计排行模块：读取提交记录，实时计算通过率、解题数量、排名数据；
+	\item 讨论与公告模块：管理帖子、评论、公告内容及教师审核操作；
+	\item 系统运维监控模块：采集服务器与业务运行指标，提供可视化监控视图与违规标记功能。
+\end{itemize}
+
+\section{数据结构设计}
+
+\subsection{数据库逻辑结构}
+系统采用MySQL 8.0关系型数据库，核心数据表设计如下：
+
+\subsubsection{用户相关表}
+\begin{itemize}
+	\item \textbf{用户表 (sys\_user)}：存储用户ID、用户名、加密密码、邮箱、角色类型（学生/教师）、注册时间、最后登录时间、账号状态（正常/禁用）等字段。用户ID为主键，用户名为唯一索引。
+	\item \textbf{用户扩展信息表 (sys\_user\_profile)}：存储用户昵称、学校、年级、真实姓名、学号/工号等扩展属性，与用户表通过用户ID外键关联。
+\end{itemize}
+
+\subsubsection{题库相关表}
+\begin{itemize}
+	\item \textbf{题目表 (problem)}：存储题目ID、标题、题目描述（富文本）、输入描述、输出描述、样例输入、样例输出、提示信息、难度等级（简单/中等/困难）、时间限制（秒）、内存限制（MB）、通过次数、提交次数、创建教师ID、创建时间、更新时间、是否启用等字段。
+	\item \textbf{测试用例表 (test\_case)}：存储用例ID、所属题目ID、输入数据、期望输出、是否为样例用例、权重分数等字段。一个题目可关联多个测试用例。
+	\item \textbf{标签表 (tag)}：存储标签ID、标签名称、标签颜色等字段，用于题目分类管理。
+	\item \textbf{题目标签关联表 (problem\_tag)}：维护题目与标签的多对多关联关系。
+\end{itemize}
+
+\subsubsection{判题相关表}
+\begin{itemize}
+	\item \textbf{提交记录表 (submission)}：存储提交ID、题目ID、用户ID、提交代码内容、编程语言（C/C++/Java/Python等）、判题状态（待判题/判题中/AC/WA/TLE/MLE/RE/CE/PE）、运行耗时（毫秒）、内存消耗（KB）、提交时间、判题完成时间等字段。
+	\item \textbf{判题详情表 (submission\_detail)}：存储每次提交的详细判题结果，包含每个测试用例的执行结果、实际输出、期望输出、运行耗时、内存消耗等详细数据，用于调试和错误分析。
+\end{itemize}
+
+\subsubsection{统计排行相关表}
+\begin{itemize}
+	\item \textbf{每日解题统计表 (daily\_stats)}：存储用户ID、统计日期、当日解题数、当日提交数、连续打卡天数等数据，用于生成学习趋势图表。
+	\item \textbf{排行榜快照表 (rank\_snapshot)}：周期性存储全站用户排名数据，包含用户ID、总解题数、总提交数、通过率、综合评分、排名等字段，用于历史排名追溯。
+\end{itemize}
+
+\subsubsection{讨论区相关表}
+\begin{itemize}
+	\item \textbf{帖子表 (post)}：存储帖子ID、标题、内容、发帖用户ID、所属题目ID（可为空）、置顶标记、精华标记、审核状态、浏览次数、回复数量、创建时间、更新时间。
+	\item \textbf{评论表 (comment)}：存储评论ID、内容、评论用户ID、所属帖子ID、父评论ID（支持多级嵌套）、创建时间、点赞数等字段。
+\end{itemize}
+
+\subsubsection{系统监控相关表}
+\begin{itemize}
+	\item \textbf{系统日志表 (sys\_log)}：存储日志ID、操作人ID、操作类型、操作内容、IP地址、User-Agent、请求URL、请求参数、操作时间等字段，用于审计追溯。
+	\item \textbf{系统指标表 (sys\_metric)}：存储指标ID、指标名称（在线人数/队列长度/CPU使用率/内存使用率等）、指标值、采集时间等字段，用于监控大屏展示。
+\end{itemize}
+
+\subsection{数据物理存储设计}
+\begin{itemize}
+	\item InnoDB存储引擎，支持事务与行级锁；
+	\item 用户表、提交记录表采用自增BIGINT主键，按时间维度进行分区；
+	\item 提交记录表中的代码内容字段采用MEDIUMTEXT类型，最大存储16MB；
+	\item 测试用例表中的输入输出字段采用TEXT类型；
+	\item 为常用查询字段（用户ID、题目ID、提交时间、判题状态）建立普通索引；
+	\item 唯一索引：用户名、邮箱；
+	\item 外键约束在逻辑层维护，物理层避免过多外键影响写入性能；
+	\item 配置每日凌晨自动备份，备份数据保留30天。
+\end{itemize}
+
+\subsection{缓存设计}
+\begin{itemize}
+	\item 使用Redis作为缓存层，缓存热点数据：
+	\item 题目详情缓存：key为problem:\{problemId\}，过期时间1小时；
+	\item 排行榜数据缓存：key为rank:global，过期时间5分钟；
+	\item 用户会话缓存：key为session:\{userId\}，过期时间30分钟；
+	\item 判题任务队列：使用Redis List结构存储待判题任务；
+	\item 分布式锁：使用Redisson实现判题服务分布式锁，防止任务重复消费。
+\end{itemize}
+
+\section{接口设计}
+
+\subsection{内部接口规范}
+系统采用前后端分离架构，所有接口遵循RESTful设计规范。接口路径以/api开头，版本号以/v1标识。请求与响应统一采用JSON格式，字符编码UTF-8。
+
+\subsubsection{统一响应格式}
+\begin{verbatim}
+	{
+		"code": 200,          // 状态码，200表示成功，其他表示失败
+		"message": "success",  // 响应消息
+		"data": {},           // 响应数据
+		"timestamp": 1699000000000  // 时间戳
+	}
+\end{verbatim}
+
+\subsubsection{用户模块接口}
+\begin{itemize}
+	\item POST /api/v1/auth/register：用户注册，请求体包含用户名、密码、邮箱、角色类型；
+	\item POST /api/v1/auth/login：用户登录，请求体包含用户名、密码，响应返回JWT Token与用户基本信息；
+	\item POST /api/v1/auth/logout：用户登出，携带Token访问，后端将Token加入黑名单；
+	\item GET /api/v1/user/profile：获取当前用户个人信息；
+	\item PUT /api/v1/user/profile：修改个人信息；
+	\item PUT /api/v1/user/password：修改密码，需验证旧密码。
+\end{itemize}
+
+\subsubsection{题库模块接口}
+\begin{itemize}
+	\item GET /api/v1/problems：分页获取题目列表，支持按难度、标签、关键词筛选；
+	\item GET /api/v1/problems/\{id\}：获取题目详情（含样例输入输出）；
+	\item POST /api/v1/problems（教师）：创建题目；
+	\item PUT /api/v1/problems/\{id\}（教师）：修改题目；
+	\item DELETE /api/v1/problems/\{id\}（教师）：删除题目；
+	\item POST /api/v1/problems/import（教师）：批量导入题目（文件上传）；
+	\item GET /api/v1/tags：获取所有标签列表。
+\end{itemize}
+
+\subsubsection{判题模块接口}
+\begin{itemize}
+	\item POST /api/v1/submissions：提交代码判题，请求体包含题目ID、代码内容、编程语言；
+	\item GET /api/v1/submissions/\{id\}：查询提交状态与判题结果；
+	\item GET /api/v1/submissions：分页获取当前用户的提交历史；
+	\item GET /api/v1/submissions/\{id\}/detail：获取某次提交的详细判题结果（各测试用例执行情况）；
+	\item GET /api/v1/submissions/problem/\{problemId\}：获取某道题目的所有提交记录（学生查看个人，教师查看全部）。
+\end{itemize}
+
+\subsubsection{排行统计接口}
+\begin{itemize}
+	\item GET /api/v1/rank/global：获取全站排行榜，支持按解题数、通过率排序；
+	\item GET /api/v1/user/stats：获取当前用户的解题统计（总提交、总通过、通过率、各难度解题分布）；
+	\item GET /api/v1/user/stats/\{userId\}：获取指定用户的解题统计（教师权限）；
+	\item GET /api/v1/admin/report（教师）：获取教学统计报表（班级整体通过率、平均提交次数等）。
+\end{itemize}
+
+\subsubsection{讨论区接口}
+\begin{itemize}
+	\item GET /api/v1/posts：获取帖子列表，支持按题目筛选；
+	\item POST /api/v1/posts：发帖；
+	\item GET /api/v1/posts/\{id\}：获取帖子详情（含评论列表）；
+	\item PUT /api/v1/posts/\{id\}：编辑帖子；
+	\item DELETE /api/v1/posts/\{id\}：删除帖子；
+	\item POST /api/v1/posts/\{id\}/comments：发表评论；
+	\item DELETE /api/v1/comments/\{id\}：删除评论；
+	\item PUT /api/v1/posts/\{id\}/status（教师）：审核帖子（通过/驳回/置顶/加精）。
+\end{itemize}
+
+\subsubsection{监控管理接口}
+\begin{itemize}
+	\item GET /api/v1/admin/metrics（教师）：获取系统实时监控指标（在线人数、队列长度、CPU/内存使用率）；
+	\item GET /api/v1/admin/submissions（教师）：获取全站提交记录，支持按用户、题目、状态筛选；
+	\item POST /api/v1/admin/submissions/\{id\}/flag（教师）：标记异常提交（抄袭嫌疑）；
+	\item POST /api/v1/admin/announcements（教师）：发布系统公告；
+	\item GET /api/v1/admin/announcements：获取公告列表。
+\end{itemize}
+
+\subsection{外部接口}
+\begin{itemize}
+	\item 无强制依赖的外部系统接口，系统完全独立运行；
+	\item 判题沙箱通过本地进程调用（ProcessBuilder）执行编译器命令，不依赖外部网络服务；
+	\item 预留邮件服务接口（SMTP），用于发送注册验证、密码找回邮件，可后期接入；
+	\item 预留OAuth2.0统一身份认证接口，便于后续与学校统一身份认证平台对接。
+\end{itemize}
+
+\section{运行设计}
+
+\subsection{运行控制}
+\begin{enumerate}
+	\item 系统启动时自动初始化数据库连接池、Redis连接池、判题工作线程池；
+	\item 系统启动时从数据库加载所有启用的题目信息至缓存，降低首次访问延迟；
+	\item 判题服务作为独立线程池运行，持续监听Redis判题任务队列，有任务时立即消费；
+	\item 判题服务设置最大并发数（默认10个任务同时执行），超出排队等待；
+	\item 每个判题任务设置超时时间，超时后强制终止子进程并返回TLE状态；
+	\item 系统关闭时，完成当前正在执行的判题任务，拒绝新任务接收，等待队列中任务处理完毕后优雅退出；
+	\item 支持热更新功能，修改题目内容或测试用例后无需重启服务，缓存自动失效并重新加载。
+\end{enumerate}
+
+\subsection{控制方式}
+\begin{itemize}
+	\item 前端采用Vue.js框架，通过Axios发送异步HTTP请求与后端交互；
+	\item 后端采用Spring Boot框架，Controller层接收请求，Service层处理业务逻辑，DAO层操作数据库；
+	\item 判题结果采用前端长轮询方式获取（每1秒轮询一次，最多轮询30秒），判题完成后返回结果，超时后提示用户稍后查看；
+	\item 系统公告采用WebSocket推送机制，实时通知在线用户新公告发布；
+	\item 监控数据采用定时器定期采集（每10秒采集一次），通过WebSocket推送到监控大屏。
+\end{itemize}
+
+\subsection{故障处理}
+\begin{enumerate}
+	\item 数据库连接异常：自动重试3次，每次间隔1秒，重试失败后返回统一错误响应，记录ERROR级别日志，触发告警通知；
+	\item Redis连接异常：降级处理，判题任务直接同步执行，不经过队列，确保核心功能可用；
+	\item 编译器未安装或不可用：返回系统错误提示，记录详细错误日志，通知运维人员处理；
+	\item 用户代码导致沙箱崩溃：沙箱超时自动回收，判题服务记录异常并返回RE状态，不影响整体服务；
+	\item 判题任务积压超过阈值（队列长度 > 1000）：触发告警通知运维人员扩容；
+	\item 服务器资源（CPU/内存）占用超过90%：自动拒绝新提交请求，返回系统繁忙提示。
+\end{enumerate}
+
+\section{安全设计}
+
+\subsection{身份认证与授权}
+\begin{itemize}
+	\item 采用JWT（JSON Web Token）进行用户身份认证，Token有效期为2小时，过期后需重新登录；
+	\item JWT Token使用HMAC-SHA256算法签名，密钥存储在服务端环境变量中，确保Token不可伪造；
+	\item Token中包含用户ID、用户名、角色类型等基础信息，不包含敏感数据（如密码）；
+	\item 所有需要登录的接口均需在请求头中携带Authorization: Bearer <token>；
+	\item 实现基于角色的访问控制（RBAC），通过拦截器/过滤器对所有请求进行权限校验；
+	\item 学生只能访问个人数据（个人信息、提交记录、统计信息），教师可以访问全部数据；
+	\item 接口层实现水平越权防范，用户只能操作本人资源，通过URL中的用户ID与Token中的用户ID进行比对校验。
+\end{itemize}
+
+\subsection{数据安全}
+\begin{itemize}
+	\item 用户密码采用BCrypt算法加密存储，加盐强度设为10轮，绝不存储明文密码；
+	\item 数据库连接配置中启用SSL加密传输；
+	\item 生产环境强制启用HTTPS协议，使用TLS 1.2及以上版本，防止中间人攻击；
+	\item 敏感操作（登录、密码修改、删除数据、导入题目）记录详细操作日志，便于审计追溯；
+	\item 用户提交的代码在存储前进行敏感信息脱敏（如包含密码、密钥等模式识别并替换），防止代码泄露个人信息。
+\end{itemize}
+
+\subsection{输入安全}
+\begin{itemize}
+	\item 所有用户输入（题目描述、代码提交、帖子内容、评论）进行XSS过滤，防止跨站脚本攻击；
+	\item 所有数据库操作使用MyBatis参数化查询，防止SQL注入攻击；
+	\item 文件上传（批量导入题目）限制文件类型为.txt或.json，对上传文件内容进行格式校验；
+	\item 代码提交内容进行长度限制（不超过65535字符），防止超大代码拖垮判题服务；
+	\item 请求参数进行严格的类型校验和范围校验，防止非法参数导致系统异常；
+	\item 使用API限流策略（令牌桶算法），对单IP/单用户的请求频率进行限制（每分钟不超过60次）。
+\end{itemize}
+
+\subsection{沙箱安全}
+\begin{itemize}
+	\item 判题沙箱采用Linux Namespace + Cgroup技术实现进程隔离、资源限制；
+	\item 禁止用户代码访问网络、操作系统文件、系统进程等敏感资源；
+	\item 使用独立的临时目录存放用户代码和执行文件，执行完毕后立即清理；
+	\item 设置用户代码执行用户为nobody（最低权限用户），无法读写系统文件；
+	\item 设置CPU时间限制（默认1秒）、内存限制（默认256MB）、进程数限制（默认1个）；
+	\item 沙箱执行环境与主机操作系统隔离，即使代码存在漏洞也无法影响主机安全。
+\end{itemize}
+
+\subsection{日志与审计}
+\begin{itemize}
+	\item 系统日志按级别（ERROR、WARN、INFO、DEBUG）分类记录；
+	\item 关键操作日志包含操作人、操作时间、操作内容、IP地址、User-Agent等信息；
+	\item 审计日志保留至少180天，用于安全事故追溯和合规审计；
+	\item 日志文件按日期滚动归档，每日切割，保留最近30天日志文件；
+	\item 提供日志查看接口（仅限管理员），支持按时间、用户、操作类型筛选查看。
+\end{itemize}
+
+\section{系统维护设计}
+
+\subsection{系统监控}
+\begin{itemize}
+	\item 提供管理员监控大屏，展示以下关键指标：
 	\begin{itemize}
-		\item OJ：Online Judge，在线程序自动判题系统；
-		\item AC：Accepted，代码通过全部测试用例；
-		\item 判题沙箱：隔离执行用户代码的安全运行环境，限制资源访问，防范恶意代码破坏服务；
-		\item 测试用例：包含标准输入、预期输出、边界条件的程序评测数据集；
-		\item 判题任务队列：缓存待执行判题任务的异步调度队列；
-		\item RESTful API：前后端交互标准接口规范；
+		\item 实时在线用户数；
+		\item 判题任务队列长度；
+		\item 服务器CPU使用率、内存使用率、磁盘使用率；
+		\item 今日提交总数、今日新增用户数；
+		\item 各判题状态占比（AC/WA/TLE等）统计图表；
+		\item 最近10条判题日志。
 	\end{itemize}
-	
-	\subsection{参考资料}
-	\begin{enumerate}
-		\item GB/T 9386-2008 计算机软件概要设计说明书规范；
-		\item 《在线OJ在线判题系统软件需求规格说明书》V2026.07；
-		\item 2026软件工程实训项目任务书；
-		\item Web前后端分离开发设计规范；
-		\item Linux沙箱安全隔离开发技术文档；
-		\item MySQL数据库设计开发规范。
-	\end{enumerate}
-	
-	\section{任务概述}
-	\subsection{目标}
-	搭建一套前后端分离架构的在线编程自动判题平台，划分学生、教师两类角色；拆解系统为用户模块、题库模块、在线代码编辑与判题模块、提交记录统计模块、讨论区模块、系统监控管理模块；实现题库分级管理、在线代码提交、沙箱自动编译评测、刷题数据排行、师生交流讨论、教师后台运维监控全套能力，满足高校编程课程线上练习、自动批改、学情统计教学需求。
-	
-	\subsection{运行环境}
-	\begin{itemize}
-		\item 服务端操作系统：Linux CentOS 7 / Windows Server 2019；
-		\item Web服务容器：Nginx、Tomcat；
-		\item 数据库：MySQL 8.0；
-		\item 判题依赖：GCC、Python、Java等多语言编译器、进程隔离沙箱程序；
-		\item 客户端环境：Chrome、Edge、Firefox主流现代浏览器；
-		\item 中间件：Redis（缓存、任务队列）。
-	\end{itemize}
-	
-	\subsection{需求概述}
-	系统分为学生端与教师管理端两大业务域：
-	1. 学生端：账号注册登录、分级题库浏览、在线代码编写提交、自动判题结果反馈、个人提交记录与刷题统计、全站排行榜、题目讨论区发帖交流；
-	2. 教师端：题库增删改查、批量导入题目、测试用例配置、全量用户与提交行为监管、异常抄袭提交标记、平台运行状态可视化监控、公告发布、讨论区内容审核管理、教学统计报表导出。
-	
-	\subsection{条件与限制}
-	\begin{enumerate}
-		\item 判题模块必须采用沙箱隔离机制，禁止用户代码直接读写服务器文件、访问网络；
-		\item 单份代码运行设置时间、内存双重上限，防止服务器资源耗尽；
-		\item 系统仅开放学生、教师两类角色，无游客完整答题权限；
-		\item 题库批量导入仅支持标准结构化文本文件，不支持自定义复杂格式；
-		\item 服务器硬件资源有限，并发判题任务存在最大并发阈值；
-		\item 所有接口需携带身份鉴权凭证，严格区分角色数据访问权限。
-	\end{enumerate}
-	
-	\section{总体设计}
-	\subsection{处理流程}
-	1. 用户注册/登录鉴权，校验身份后跳转对应功能页面；
-	2. 学生浏览题库，选定题目进入在线代码编辑器，编写代码提交至后端；
-	3. 后端接收代码、题目ID，封装判题任务送入Redis任务队列；
-	4. 判题服务消费队列任务，调度沙箱隔离运行代码，加载对应测试用例逐组比对输出；
-	5. 收集判题状态、运行耗时、内存占用结果，写入数据库提交记录；
-	6. 前端轮询获取判题结果，展示评测状态、错误日志；
-	7. 系统同步更新个人解题统计、全站排行榜数据；
-	8. 教师登录后台，完成题库维护、用户监管、平台监控、讨论区管理操作；
-	9. 所有操作行为记录系统日志，异常数据触发预警提示。
-	
-	\subsection{总体结构和模块外部设计}
-	系统整体采用分层架构，自上而下分为四层：前端展示层、应用服务层、判题服务层、数据持久层，拆分六大独立业务模块：
-	\begin{enumerate}
-		\item 用户权限模块：账号注册登录、身份鉴权、角色权限控制、个人信息管理；
-		\item 题库管理模块：题目CRUD、难度标签管理、测试用例配置、批量导入导出；
-		\item 在线判题模块：在线代码编辑器、任务队列调度、沙箱编译运行、结果判定；
-		\item 数据统计排行模块：个人提交记录、解题统计、全站实时排行榜、教学报表；
-		\item 讨论与公告模块：题目讨论帖子、评论回复、全站公告发布、内容审核；
-		\item 系统运维监控模块：在线人数、判题队列、编译器负载、服务器健康监控、异常提交标记。
-	\end{enumerate}
-	
-	\subsection{功能分配}
-	\begin{itemize}
-		\item 用户权限模块：承担登录校验、账号管理、接口鉴权全部功能；
-		\item 题库管理模块：负责题目基础数据、测试用例、难度分类的存储与维护；
-		\item 在线判题模块：承载代码接收、异步调度、沙箱执行、结果比对核心逻辑；
-		\item 数据统计排行模块：读取提交记录，实时计算通过率、解题数量、排名数据；
-		\item 讨论与公告模块：管理帖子、评论、公告内容及教师审核操作；
-		\item 系统运维监控模块：采集服务器与业务运行指标，提供可视化监控视图与违规标记功能。
-	\end{itemize}
-	
+	\item 监控数据每10秒刷新一次，通过WebSocket推送到前端；
+	\item 系统健康检查接口（/actuator/health），供外部监控系统定时探测；
+	\item 异常情况（服务不可用、资源使用率超阈值）自动发送告警邮件（预留SMTP接口）。
+\end{itemize}
+
+\subsection{系统备份与恢复}
+\begin{itemize}
+	\item 数据库每日凌晨2:00自动全量备份，使用mysqldump工具，备份文件压缩存储；
+	\item 备份文件保留最近30天，超过30天自动删除；
+	\item 系统核心配置文件（application.yml、日志配置）纳入版本控制管理；
+	\item 提供数据恢复脚本，支持将备份文件快速恢复到指定时间点；
+	\item 判题临时文件目录每日定时清理（凌晨3:00），释放磁盘空间。
+\end{itemize}
+
+\subsection{系统扩展性}
+\begin{itemize}
+	\item 判题服务支持水平扩展，多实例部署时共享Redis任务队列，实现负载分摊；
+	\item 编程语言支持可扩展，通过配置文件新增语言的编译命令和执行命令；
+	\item 题库支持在线新增、修改、删除，无需重新部署服务；
+	\item 支持通过配置文件调整判题超时时间、内存限制、并发数等参数，无需重启服务；
+	\item 数据库读写分离预留接口，便于后续扩展从库应对高并发查询场景。
+\end{itemize}
+
+\section{附录}
+
+\subsection{附录A：判题状态码定义}
+\begin{longtable}{|p{3cm}|p{3cm}|p{8cm}|}
+	\hline
+	\textbf{状态码} & \textbf{英文标识} & \textbf{说明} \\
+	\hline
+	0 & PENDING & 待判题，任务已进入队列 \\
+	\hline
+	1 & JUDGING & 判题中，正在执行评测 \\
+	\hline
+	2 & AC & Accepted，答案正确，通过全部测试用例 \\
+	\hline
+	3 & WA & Wrong Answer，答案错误 \\
+	\hline
+	4 & TLE & Time Limit Exceeded，运行超时 \\
+	\hline
+	5 & MLE & Memory Limit Exceeded，内存超限 \\
+	\hline
+	6 & RE & Runtime Error，运行时错误 \\
+	\hline
+	7 & CE & Compile Error，编译错误 \\
+	\hline
+	8 & PE & Presentation Error，输出格式错误 \\
+	\hline
+	9 & SE & System Error，系统错误（沙箱异常） \\
+	\hline
+\end{longtable}
+
+\subsection{附录B：系统错误码定义}
+\begin{longtable}{|p{3cm}|p{10cm}|}
+	\hline
+	\textbf{错误码} & \textbf{说明} \\
+	\hline
+	200 & 请求成功 \\
+	\hline
+	400 & 请求参数错误 \\
+	\hline
+	401 & 未认证（Token缺失或无效） \\
+	\hline
+	403 & 权限不足（角色无权访问） \\
+	\hline
+	404 & 资源不存在 \\
+	\hline
+	409 & 资源冲突（用户名/邮箱已存在等） \\
+	\hline
+	429 & 请求过于频繁（触发限流） \\
+	\hline
+	500 & 服务器内部错误 \\
+	\hline
+	503 & 服务暂时不可用（判题服务繁忙） \\
+	\hline
+\end{longtable}
+
+\subsection{附录C：技术选型清单}
+\begin{longtable}{|p{3cm}|p{3cm}|p{8cm}|}
+	\hline
+	\textbf{技术栈} & \textbf{版本} & \textbf{用途} \\
+	\hline
+	Spring Boot & 2.7.x & 后端基础框架 \\
+	\hline
+	MyBatis-Plus & 3.5.x & ORM数据库操作框架 \\
+	\hline
+	JWT & 0.9.x & 身份认证Token生成与验证 \\
+	\hline
+	MySQL & 8.0 & 关系型数据库 \\
+	\hline
+	Redis & 6.2 & 缓存与判题任务队列 \\
+	\hline
+	Vue.js & 3.x & 前端基础框架 \\
+	\hline
+	Element Plus & 2.x & 前端UI组件库 \\
+	\hline
+	Monaco Editor & 0.34.x & 在线代码编辑器（VS Code内核） \\
+	\hline
+	Nginx & 1.22 & Web服务器/反向代理 \\
+	\hline
+	Docker & 20.10 & 可选部署容器化方案 \\
+	\hline
+\end{longtable}
 	\section{接口设计}
 	
 	\subsection{接口架构与设计原则}
