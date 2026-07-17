@@ -140,10 +140,15 @@
 	\section*{版本修订记录}
 	\begin{longtable}{|c|c|c|c|p{5cm}|}
 		\hline
-		V1.0 & 2026-07-17 & 钟晶卉 & 乔鑫钰 & 更新概要设计 \\
-		\hline
+	
+	
 		\endhead
 	}{
 	\end{longtable}
 	\newpage
 }
+
+% 需求条目快捷命令
+\newcommand{\reqitem}[2]{\noindent \textbf{需求#1：} #2 \par}
+
+\endinput
