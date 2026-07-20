@@ -1,27 +1,21 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Login from '../views/Login.vue'
-import EditPaper from '../views/EditPaper.vue'
 
 const routes = [
   {
     path: '/',
-    redirect: '/login'
-  },
-  {
-    path: '/login',
-    name: 'Login',
-    component: Login,
-    meta: { requiresGuest: true }
+    name: 'Papers',
+    component: () => import('../views/student/Papers.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/edit/:id?',
     name: 'EditPaper',
-    component: EditPaper,
+    component: () => import('../views/EditPaper.vue'),
     meta: { requiresAuth: true }
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/login'
+    redirect: '/'
   }
 ]
 
@@ -30,19 +24,18 @@ const router = createRouter({
   routes
 })
 
-// 检查用户是否已登录
 function isAuthenticated() {
-  return !!localStorage.getItem('token')
+  // App.vue 登录后写 sessionStorage + localStorage
+  const session = sessionStorage.getItem('paper-user-session')
+  const token = localStorage.getItem('paper-access-token') || localStorage.getItem('token')
+  return !!(session && token)
 }
 
 // 全局导航守卫
 router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !isAuthenticated()) {
-    // 需要登录但未登录，跳转到登录页
-    next({ name: 'Login', query: { redirect: to.fullPath } })
-  } else if (to.meta.requiresGuest && isAuthenticated()) {
-    // 已登录用户访问登录页，重定向到编辑页
-    next({ name: 'EditPaper' })
+    // 未登录 → 回到根路径，App.vue 会显示登录页
+    next('/')
   } else {
     next()
   }

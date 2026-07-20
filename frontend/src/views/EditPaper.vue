@@ -234,6 +234,11 @@ onBeforeUnmount(() => {
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }
+
+function handleLogout() {
+  localStorage.removeItem('token')
+  router.push({ name: 'Login' })
+}
 </script>
 
 <template>
@@ -241,6 +246,9 @@ function toggleSidebar() {
     <!-- ====== 顶部栏 ====== -->
     <header class="top-bar">
       <div class="top-bar-left">
+        <el-button size="small" text @click="router.push({ name: 'Papers' })" title="返回列表">
+          ← 返回
+        </el-button>
         <el-button size="small" text @click="toggleSidebar">
           {{ sidebarCollapsed ? '☰' : '✕' }}
         </el-button>
@@ -257,6 +265,7 @@ function toggleSidebar() {
           {{ dirty ? '● 未保存' : '● 已保存' }}
         </span>
         <el-button type="primary" :loading="saving" @click="savePaper">保 存</el-button>
+        <el-button text @click="handleLogout">退出</el-button>
       </div>
     </header>
 

@@ -87,7 +87,7 @@ async function handleLogin() {
     })
     localStorage.setItem('token', res.data?.token || res.token)
     ElMessage.success('登录成功')
-    const redirect = route.query.redirect || { name: 'EditPaper' }
+    const redirect = route.query.redirect || { name: 'Papers' }
     router.push(redirect)
   } catch (err) {
     const msg = err.response?.data?.message || '登录失败，请检查用户名和密码'
