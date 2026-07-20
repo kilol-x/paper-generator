@@ -196,6 +196,7 @@ function onKeydown(e) {
   }
 }
 
+
 // 页面关闭前提醒
 window.addEventListener('beforeunload', e => {
   if (dirty.value) {
@@ -239,6 +240,16 @@ function handleLogout() {
   localStorage.removeItem('token')
   router.push({ name: 'Login' })
 }
+// ==================== 预览跳转 ====================
+const goPreview = () => {
+  if (!paperId.value) {
+    ElMessage.warning('请先保存论文再预览')
+    return
+  }
+  // 新窗口打开预览页面
+  const routeData = router.resolve(`/preview/${paperId.value}`)
+  window.open(routeData.href, '_blank')
+}
 </script>
 
 <template>
@@ -251,6 +262,10 @@ function handleLogout() {
         </el-button>
         <el-button size="small" text @click="toggleSidebar">
           {{ sidebarCollapsed ? '☰' : '✕' }}
+        </el-button>
+        <el-button type="primary" @click="goPreview">
+          <el-icon><View /></el-icon>
+          预览论文
         </el-button>
         <el-input
           v-model="paperTitle"
