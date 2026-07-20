@@ -8,9 +8,9 @@ spring:
     name: paper-system-backend
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/paper_system?useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://localhost:3306/paper_system?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: root
-    password: 123456
+    password: 42411167
   jpa:
     hibernate:
       ddl-auto: update

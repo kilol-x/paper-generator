@@ -31,6 +31,23 @@ public class Paper {
     @Column(nullable = false, length = 20)
     private String status;
 
+    @Column(name = "teacher_id")
+    private Long teacherId;
+
+    @Column(nullable = false)
+    private Boolean locked = false;
+
+    @Column(name = "current_version", nullable = false)
+    private Integer currentVersion = 1;
+
+    private Integer score;
+
+    @Column(length = 4)
+    private String grade;
+
+    @Column(name = "teacher_summary", length = 2000)
+    private String teacherSummary;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
