@@ -9,8 +9,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class JwtInterceptor implements HandlerInterceptor {
 
-    // 开启调试模式：设置为 true 时，直接放行所有权限校验，方便组员联调
-    private static final boolean DEBUG_MODE = true;
+    private static final boolean DEBUG_MODE = false;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -37,6 +36,17 @@ public class JwtInterceptor implements HandlerInterceptor {
                 if (path.startsWith("/api/admin/") && !"ADMIN".equals(role)) {
                     sendForbidden(response, "权限不足：仅管理员可访问");
                     return false;
+                }
+                if (path.startsWith("/api/reviews/") && "POST".equalsIgnoreCase(request.getMethod())) {
+                    boolean submitAction = path.endsWith("/submit");
+                    if (submitAction && !"STUDENT".equals(role)) {
+                        sendForbidden(response, "权限不足：仅学生可提交论文");
+                        return false;
+                    }
+                    if (!submitAction && !"TEACHER".equals(role)) {
+                        sendForbidden(response, "权限不足：仅教师可执行批阅操作");
+                        return false;
+                    }
                 }
                 request.setAttribute("claims", claims);
                 return true;
