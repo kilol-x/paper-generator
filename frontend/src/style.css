@@ -1,0 +1,153 @@
+/* ============================================================
+   Notion Morandi · 温润卡片风
+   —— 莫兰迪柔和低饱和 · 全局设计令牌
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&family=Varela+Round&display=swap');
+
+:root {
+  /* === 莫兰迪主色（克制的深灰绿，作为强调色）=== */
+  --primary:        #5B8577;
+  --primary-hover:  #4A7364;
+  --primary-tint:   #EDF3F0;
+  --primary-soft:   #E1EBE5;
+
+  /* === 中性色 —— 暖色调 (类似 Notion) === */
+  --bg-page:        #F7F5F2;
+  --bg-card:        #FFFFFF;
+  --bg-hover:       #F4F2EF;
+  --bg-active:      #EDEBE6;
+
+  /* === 文字 === */
+  --text-main:      #37352F;
+  --text-mute:      #6F6B65;
+  --text-dim:       #9B9691;
+  --text-light:     #C3BFB8;
+
+  /* === 边框 === */
+  --border:         #EAE7E1;
+  --border-strong:  #D8D3CB;
+
+  /* === 语义色（低饱和莫兰迪版）=== */
+  --success:        #6A9773;
+  --success-bg:     #EBF2EC;
+  --warning:        #B98B5C;
+  --warning-bg:     #F6EEE2;
+  --danger:         #B4635A;
+  --danger-bg:      #F5E8E5;
+
+  /* === 几何 === */
+  --r-sm: 4px;
+  --r:    6px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+
+  /* === 阴影：柔和扩散 === */
+  --shadow-xs: 0 1px 2px rgba(15, 15, 15, 0.03);
+  --shadow-sm: 0 1px 3px rgba(15, 15, 15, 0.04), 0 1px 2px rgba(15, 15, 15, 0.03);
+  --shadow:    0 6px 20px rgba(15, 15, 15, 0.05), 0 2px 6px rgba(15, 15, 15, 0.03);
+  --shadow-lg: 0 20px 40px rgba(15, 15, 15, 0.08), 0 8px 16px rgba(15, 15, 15, 0.04);
+  --ring:      0 0 0 3px rgba(91, 133, 119, 0.2);
+
+  /* === 排版 === */
+  --font: "Nunito Sans", "Inter", -apple-system, BlinkMacSystemFont,
+          "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-heading: "Varela Round", "Nunito Sans", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* === 动效 === */
+  --t-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --t:      200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* === Element Plus 变量覆盖 === */
+  --el-color-primary:           var(--primary);
+  --el-color-primary-light-3:   #7DAE9A;
+  --el-color-primary-light-5:   #A8D1BF;
+  --el-color-primary-light-7:   #C8E3D7;
+  --el-color-primary-light-8:   #DDEFE8;
+  --el-color-primary-light-9:   #EEF7F3;
+  --el-color-primary-dark-2:    var(--primary-hover);
+
+  --el-text-color-primary:      var(--text-main);
+  --el-text-color-regular:      var(--text-mute);
+  --el-text-color-secondary:    var(--text-dim);
+  --el-text-color-placeholder:  var(--text-light);
+
+  --el-border-color:            var(--border);
+  --el-border-color-light:      #F0EDE8;
+  --el-border-color-lighter:    #F5F3EF;
+  --el-border-color-extra-light:#FAF8F5;
+
+  --el-bg-color:                var(--bg-card);
+  --el-bg-color-page:           var(--bg-page);
+  --el-bg-color-overlay:        var(--bg-card);
+
+  --el-fill-color:              var(--bg-page);
+  --el-fill-color-light:        #FAF8F5;
+  --el-fill-color-lighter:      #FDFCFA;
+  --el-fill-color-blank:        var(--bg-card);
+
+  --el-color-success:           var(--success);
+  --el-color-warning:           var(--warning);
+  --el-color-danger:            var(--danger);
+  --el-color-info:              #8A9199;
+
+  --el-border-radius-base:      var(--r-lg);
+  --el-border-radius-small:     var(--r-sm);
+
+  --el-box-shadow-light:        var(--shadow-sm);
+  --el-box-shadow:              var(--shadow);
+  --el-box-shadow-dark:         var(--shadow-lg);
+
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.6;
+  color-scheme: light;
+  color: var(--text-main);
+  background: var(--bg-page);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== reset ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-main);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; border: 0; background: transparent; color: inherit; }
+input, select, textarea { font: inherit; color: inherit; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-light); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--r); }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+
+::selection {
+  background: rgba(91, 133, 119, 0.18);
+  color: var(--text-main);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
