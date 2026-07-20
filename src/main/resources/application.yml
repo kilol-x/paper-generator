@@ -6,14 +6,11 @@ server:
 spring:
   application:
     name: paper-system-backend
-
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/paper_system?serverTimezone=GMT%2B8&useSSL=false&characterEncoding=utf-8&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    url: jdbc:mysql://localhost:3306/paper_system?useSSL=false&serverTimezone=UTC
     username: root
     password: root
-
-<<<<<<< HEAD
   jpa:
     hibernate:
       ddl-auto: update
@@ -23,9 +20,6 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
     open-in-view: false
-=======
->>>>>>> 2e14bb3414e7a360b48c444f56eb6df4daf1f733
-
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8

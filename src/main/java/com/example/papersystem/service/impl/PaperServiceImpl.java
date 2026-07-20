@@ -6,8 +6,6 @@ import com.example.papersystem.service.PaperService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 @Service
 public class PaperServiceImpl implements PaperService {
 
@@ -15,32 +13,12 @@ public class PaperServiceImpl implements PaperService {
     private PaperRepository paperRepository;
 
     @Override
-    public Paper createPaper(Paper paper, Long studentId) {
-        paper.setStudentId(studentId);
-        paper.setStatus("DRAFT");
+    public Paper save(Paper paper) {
         return paperRepository.save(paper);
     }
 
     @Override
-    public Paper getPaperById(Long id) {
+    public Paper findById(Long id) {
         return paperRepository.findById(id).orElse(null);
-    }
-
-    @Override
-    public List<Paper> getPapersByStudentId(Long studentId) {
-        return paperRepository.findByStudentIdOrderByUpdatedAtDesc(studentId);
-    }
-
-    @Override
-    public void updatePaperContent(Long id, String content) {
-        paperRepository.findById(id).ifPresent(paper -> {
-            paper.setContent(content);
-            paperRepository.save(paper);
-        });
-    }
-
-    @Override
-    public void deletePaper(Long id) {
-        paperRepository.deleteById(id);
     }
 }

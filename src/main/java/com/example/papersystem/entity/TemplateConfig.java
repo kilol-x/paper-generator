@@ -3,15 +3,12 @@ package com.example.papersystem.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
 import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "tb_template_config",
-        uniqueConstraints = @UniqueConstraint(columnNames = "template_id"))
+@Table(name = "tb_template_config")
 @EntityListeners(AuditingEntityListener.class)
 public class TemplateConfig {
     @Id
@@ -21,28 +18,15 @@ public class TemplateConfig {
     @Column(name = "template_id", nullable = false)
     private Long templateId;
 
-<<<<<<< HEAD
-    // {"sections":[{key,name,required,visible,editable,order,multiLevel?,maxLevel?,note?},...]}
-    // required=学生是否必填；visible=模板中是否显示该节（两者独立）
-=======
->>>>>>> 2e14bb3414e7a360b48c444f56eb6df4daf1f733
     @Lob
     @Column(name = "structure_json", columnDefinition = "LONGTEXT")
     private String structureJson;
 
-<<<<<<< HEAD
-    // 包含 page/body/heading1~3/abstract/caption/references/coverTitle/coverBody/header/footer
-    // header.text 支持占位符 {collegeName}；references.numberFormat 用 [N] 表示编号位置
-=======
->>>>>>> 2e14bb3414e7a360b48c444f56eb6df4daf1f733
     @Lob
     @Column(name = "format_json", columnDefinition = "LONGTEXT")
     private String formatJson;
 
-<<<<<<< HEAD
-    // [{key,label,type(text|date),required,maxLength,order},...] 仅定义字段，样式由 formatJson.coverTitle/coverBody 控制
-=======
->>>>>>> 2e14bb3414e7a360b48c444f56eb6df4daf1f733
+    // 添加这个字段，这样 @Data 注解会自动为你生成 getCoverFields() 方法
     @Lob
     @Column(name = "cover_fields", columnDefinition = "LONGTEXT")
     private String coverFields;
@@ -50,8 +34,4 @@ public class TemplateConfig {
     @CreatedDate
     @Column(name = "create_time", updatable = false)
     private LocalDateTime createTime;
-
-    @LastModifiedDate
-    @Column(name = "update_time")
-    private LocalDateTime updateTime;
 }
