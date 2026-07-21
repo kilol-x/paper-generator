@@ -25,7 +25,7 @@ const statusOptions = [
   { label: '已提交', value: 'SUBMITTED' },
   { label: '批阅中', value: 'REVIEWING' },
   { label: '已退回', value: 'RETURNED' },
-  { label: '已评分', value: 'GRADED' }
+  { label: '审核通过', value: 'APPROVED' }
 ]
 
 const statusMap = {
@@ -33,7 +33,8 @@ const statusMap = {
   SUBMITTED:{ label: '已提交', cls: 's-submitted' },
   REVIEWING:{ label: '批阅中', cls: 's-reviewing' },
   RETURNED: { label: '已退回', cls: 's-returned' },
-  GRADED:   { label: '已评分', cls: 's-graded' }
+  GRADED:   { label: '已评分', cls: 's-graded' },
+  APPROVED: { label: '审核通过', cls: 's-graded' }
 }
 
 async function loadPapers() {
@@ -100,19 +101,12 @@ async function submitPaper(paper) {
   } catch { return }
 
   try {
-    // 先通过更新接口设置状态为 SUBMITTED 并锁定
-    await request.put(`/api/papers/${paper.id}`, {
-      title: paper.title,
-      status: 'SUBMITTED'
-    })
-    // 再调用 submit 接口创建版本记录
-    try {
-      await request.post(`/api/reviews/${paper.id}/submit`)
-    } catch { /* submit 接口可能还未完善 */ }
+    const res = await request.post(`/api/reviews/${paper.id}/submit`)
+    if (res.code !== 200) throw new Error(res.message || '提交失败')
     ElMessage.success('论文已提交')
     await loadPapers()
   } catch (err) {
-    ElMessage.error(err.response?.data?.message || '提交失败')
+    ElMessage.error(err.message || err.response?.data?.message || '提交失败')
   }
 }
 
@@ -147,9 +141,7 @@ function canEdit(paper) {
   return paper.status === 'DRAFT' || paper.status === 'RETURNED'
 }
 
-function canSubmit(paper) {
-  return paper.status === 'DRAFT'
-}
+function canSubmit(paper) { return paper.status === 'DRAFT' || paper.status === 'RETURNED' }
 
 onMounted(() => loadPapers())
 </script>
@@ -237,7 +229,7 @@ onMounted(() => loadPapers())
                 v-if="canSubmit(row)"
                 size="small" type="success" link :icon="Upload"
                 @click="submitPaper(row)"
-              >提交</el-button>
+              >{{ row.status === 'RETURNED' ? '重新提交' : '提交' }}</el-button>
               <el-button
                 v-if="canEdit(row)"
                 size="small" type="danger" link :icon="Delete"

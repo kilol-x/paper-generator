@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface PaperRepository extends JpaRepository<Paper, Long> {
     List<Paper> findByStudentIdOrderByUpdatedAtDesc(Long studentId);
+    List<Paper> findByTeacherIdAndStatusNotOrderByUpdatedAtDesc(Long teacherId, String status);
+    long countByStudentIdAndStatusNot(Long studentId, String status);
 
     Page<Paper> findByStudentIdOrderByUpdatedAtDesc(Long studentId, Pageable pageable);
 

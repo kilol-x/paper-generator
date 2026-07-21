@@ -6,7 +6,8 @@ const routes = [
     path: '/',
     name: 'Papers',
     component: () => import('../views/student/Papers.vue'),
-    meta: { requiresAuth: true }
+    // 统一登录页由 App.vue 在根路由展示，未登录时必须允许进入 /
+    meta: { requiresAuth: false }
   },
   {
     path: '/edit/:id?',

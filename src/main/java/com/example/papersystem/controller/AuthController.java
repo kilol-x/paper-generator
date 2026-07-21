@@ -30,6 +30,9 @@ public class AuthController {
         if (!role.equals("STUDENT") && !role.equals("TEACHER") && !role.equals("ADMIN")) {
             return Result.error(400, "注册角色无效");
         }
+        if (role.equals("STUDENT")) {
+            return Result.error(403, "学生账号只能由教师在学生管理中创建");
+        }
         if (user.getPassword().length() < 6) {
             return Result.error(400, "密码至少需要6位");
         }

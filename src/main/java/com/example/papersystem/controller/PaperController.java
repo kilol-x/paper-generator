@@ -3,7 +3,9 @@ package com.example.papersystem.controller;
 import com.example.papersystem.common.Result;
 import com.example.papersystem.entity.Paper;
 import com.example.papersystem.entity.PaperVersion;
+import com.example.papersystem.entity.User;
 import com.example.papersystem.repository.PaperVersionRepository;
+import com.example.papersystem.repository.UserRepository;
 import com.example.papersystem.service.PaperService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -32,6 +34,9 @@ public class PaperController {
     @Autowired
     private PaperVersionRepository paperVersionRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     // ==================== 辅助方法 ====================
@@ -40,7 +45,7 @@ public class PaperController {
     private Long getCurrentUserId() {
         Claims claims = (Claims) request.getAttribute("claims");
         if (claims == null) return null;
-        return claims.get("userId", Long.class);
+        return ((Number) claims.get("userId")).longValue();
     }
 
     /** 将 Paper 实体转为前端需要的响应（content JSON → sections 数组） */
@@ -49,6 +54,8 @@ public class PaperController {
         map.put("id", paper.getId());
         map.put("title", paper.getTitle());
         map.put("studentId", paper.getStudentId());
+        map.put("studentName", paper.getStudentName());
+        map.put("studentIdNumber", paper.getStudentIdNumber());
         map.put("status", paper.getStatus());
         map.put("teacherId", paper.getTeacherId());
         map.put("locked", paper.getLocked());
@@ -106,6 +113,7 @@ public class PaperController {
             item.put("currentVersion", p.getCurrentVersion());
             item.put("score", p.getScore());
             item.put("grade", p.getGrade());
+            item.put("teacherSummary", p.getTeacherSummary());
             item.put("createdAt", p.getCreatedAt());
             item.put("updatedAt", p.getUpdatedAt());
             return item;
@@ -128,6 +136,9 @@ public class PaperController {
         if (paper == null) {
             return Result.error(404, "论文不存在");
         }
+        Long userId = getCurrentUserId();
+        if (userId == null) return Result.error(401, "未登录或 Token 已过期");
+        if (!userId.equals(paper.getStudentId())) return Result.error(403, "无权访问他人论文");
         return Result.success("查询成功", buildPaperResponse(paper));
     }
 
@@ -187,11 +198,19 @@ public class PaperController {
         if (userId == null) {
             return Result.error(401, "未登录或 Token 已过期");
         }
+        User student = userRepository.findById(userId).orElse(null);
+        if (student == null || student.getTeacherId() == null) {
+            return Result.error(409, "当前学生尚未绑定教师，无法创建论文");
+        }
 
         Paper paper = new Paper();
         paper.setTitle(title);
         paper.setStudentId(userId);
+        paper.setStudentName(student.getNickname());
+        paper.setStudentIdNumber(student.getUsername());
+        paper.setTeacherId(student.getTeacherId());
         paper.setStatus("DRAFT");
+        paper.setLocked(false);
 
         // 前端传来的 sections 数组序列化为 JSON 存入 content
         Object sections = body.get("sections");
@@ -233,15 +252,17 @@ public class PaperController {
         if (!userId.equals(existing.getStudentId())) {
             return Result.error(403, "无权修改他人论文");
         }
+        if (Boolean.TRUE.equals(existing.getLocked())) {
+            return Result.error(409, "论文已锁定，当前状态不可编辑");
+        }
+        if (!("DRAFT".equals(existing.getStatus()) || "RETURNED".equals(existing.getStatus()))) {
+            return Result.error(409, "当前论文状态不可编辑");
+        }
 
         Paper updated = new Paper();
         if (body.get("title") != null) {
             updated.setTitle(body.get("title").toString().trim());
         }
-        if (body.get("status") != null) {
-            updated.setStatus(body.get("status").toString().trim());
-        }
-
         // sections → content JSON
         Object sections = body.get("sections");
         if (sections != null) {
@@ -280,6 +301,9 @@ public class PaperController {
 
         if (!userId.equals(paper.getStudentId())) {
             return Result.error(403, "无权删除他人论文");
+        }
+        if (Boolean.TRUE.equals(paper.getLocked())) {
+            return Result.error(409, "论文已锁定，不能删除");
         }
 
         paperService.delete(id);
