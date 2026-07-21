@@ -54,6 +54,12 @@ public class PaperServiceImpl implements PaperService {
         if (updated.getStatus() != null && !updated.getStatus().isBlank()) {
             existing.setStatus(updated.getStatus());
         }
+        if (updated.getTemplateId() != null) {
+            existing.setTemplateId(updated.getTemplateId());
+        }
+        if (updated.getTemplateSnapshot() != null) {
+            existing.setTemplateSnapshot(updated.getTemplateSnapshot());
+        }
         // updatedAt is auto-managed by @LastModifiedDate, but ensure it refreshes
         existing.setUpdatedAt(LocalDateTime.now());
         return paperRepository.save(existing);

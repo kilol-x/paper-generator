@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, Document, Upload } from '@element-plus/icons-vue'
 import request from '../../api/request'
+import TemplatePickerDialog from '../../components/TemplatePickerDialog.vue'
 
 const router = useRouter()
 
@@ -15,6 +16,8 @@ const pageSize = ref(10)
 
 const searchKeyword = ref('')
 const filterStatus = ref('')
+
+const showTemplatePicker = ref(false)
 
 const statusOptions = [
   { label: '全部状态', value: '' },
@@ -55,7 +58,36 @@ function editPaper(id) {
 }
 
 function createPaper() {
-  router.push({ name: 'EditPaper' })
+  showTemplatePicker.value = true
+}
+
+async function onTemplatePicked(templateData) {
+  const tpl = templateData.template
+  const cfg = templateData.config || {}
+  try {
+    const res = await request.post('/api/papers', {
+      title: `${tpl.name} - 未命名论文`,
+      sections: [],
+      templateId: tpl.id,
+      templateSnapshot: JSON.stringify({
+        templateId: tpl.id,
+        templateName: tpl.name,
+        templateType: tpl.type,
+        structureJson: cfg.structureJson || '',
+        formatJson: cfg.formatJson || '',
+        coverFields: cfg.coverFields || '',
+      })
+    })
+    const newId = res?.id || res?.data?.id
+    ElMessage.success('论文已创建，正在进入编辑器…')
+    router.push({
+      name: 'EditPaper',
+      params: { id: newId },
+      state: { templateData }
+    })
+  } catch (err) {
+    ElMessage.error(err.response?.data?.message || '创建论文失败')
+  }
 }
 
 async function submitPaper(paper) {
@@ -230,6 +262,12 @@ onMounted(() => loadPapers())
         />
       </div>
     </div>
+
+    <!-- 模板选择弹窗 -->
+    <TemplatePickerDialog
+      v-model="showTemplatePicker"
+      @confirm="onTemplatePicked"
+    />
   </div>
 </template>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '../api/request'
 
@@ -15,11 +15,16 @@ async function loadVersions() {
   if (!props.paperId) return
   loading.value = true
   try {
-    const res = await request.get(`/api/reviews/${props.paperId}/versions`)
+    const res = await request.get(`/api/papers/${props.paperId}/drafts`)
     versions.value = (res?.data || res) || []
   } catch {
-    // 接口可能还不存在，静默处理
-    versions.value = []
+    try {
+      // 兼容旧接口
+      const fallback = await request.get(`/api/reviews/${props.paperId}/versions`)
+      versions.value = (fallback?.data || fallback) || []
+    } catch {
+      versions.value = []
+    }
   } finally {
     loading.value = false
   }
@@ -37,7 +42,9 @@ function actionLabel(a) {
     RETURN: '退回',
     GRADE: '评分',
     SAVE: '保存',
-    CREATE: '创建'
+    CREATE: '创建',
+    AUTO_SAVE: '自动保存',
+    MANUAL_SAVE: '手动保存'
   }
   return map[a] || a || '—'
 }
@@ -49,7 +56,9 @@ function actionColor(a) {
     GRADE: '#2563eb',
     SAVE: '#787b75',
     CREATE: '#787b75',
-    REVIEW: '#8b5cf6'
+    REVIEW: '#8b5cf6',
+    AUTO_SAVE: '#4F776A',
+    MANUAL_SAVE: '#d97706'
   }
   return map[a] || '#787b75'
 }
@@ -71,6 +80,10 @@ function onRestoreClick(v) {
     }
   }).catch(() => {})
 }
+
+watch(() => props.paperId, () => {
+  loadVersions()
+}, { immediate: true })
 
 onMounted(loadVersions)
 </script>

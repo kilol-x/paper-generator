@@ -2,17 +2,20 @@
 import { reactive, watch, ref } from 'vue'
 import { Plus, Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import request from '../api/request'
 
 const props = defineProps({
+  paperId: { type: [String, Number], default: null },
   modelValue: { type: Array, default: () => [] }
 })
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'cite'])
 
 const refs = ref([])
+const loading = ref(false)
 
-watch(() => props.modelValue, (v) => {
-  refs.value = Array.isArray(v) ? [...v] : []
-}, { immediate: true, deep: true })
+watch(() => props.paperId, () => {
+  loadRefs()
+}, { immediate: true })
 
 function emitChange() {
   emit('update:modelValue', [...refs.value])
@@ -20,72 +23,121 @@ function emitChange() {
 
 // 表单对话框
 const dialogVisible = ref(false)
-const editingIdx = ref(-1)
+const editingId = ref(null)
 
 const emptyRef = () => ({
-  id: Date.now(),
   authors: '',
   title: '',
   journal: '',
   year: '',
-  volume: '',
-  issue: '',
   pages: ''
 })
 
 const form = reactive(emptyRef())
 
+async function loadRefs() {
+  if (!props.paperId) {
+    refs.value = []
+    emitChange()
+    return
+  }
+  loading.value = true
+  try {
+    const res = await request.get(`/api/papers/${props.paperId}/references`)
+    refs.value = (res?.data || res || []).map(item => ({
+      ...item,
+      id: item.id,
+      citationNo: item.citationNo,
+      formattedText: item.formattedText
+    }))
+    emitChange()
+  } catch {
+    refs.value = []
+    emitChange()
+  } finally {
+    loading.value = false
+  }
+}
+
 function openAdd() {
-  editingIdx.value = -1
+  editingId.value = null
   Object.assign(form, emptyRef())
   dialogVisible.value = true
 }
 
-function openEdit(idx) {
-  editingIdx.value = idx
-  Object.assign(form, { ...refs.value[idx] })
+function openEdit(item) {
+  editingId.value = item.id
+  Object.assign(form, {
+    authors: item.authors || '',
+    title: item.title || '',
+    journal: item.journal || '',
+    year: item.year || '',
+    pages: item.pages || ''
+  })
   dialogVisible.value = true
 }
 
-function saveRef() {
-  if (!form.title.trim()) {
-    ElMessage.warning('文献标题不能为空')
+async function saveRef() {
+  if (!props.paperId) {
+    ElMessage.warning('请先保存论文，再录入参考文献')
     return
   }
-  if (editingIdx.value >= 0) {
-    refs.value[editingIdx.value] = { ...form, id: refs.value[editingIdx.value].id }
-  } else {
-    refs.value.push({ ...form, id: Date.now() })
+  if (!form.authors.trim() || !form.title.trim() || !form.journal.trim() || !form.year.trim()) {
+    ElMessage.warning('作者、标题、发表刊物、出版年份为必填项')
+    return
   }
-  dialogVisible.value = false
-  emitChange()
-  ElMessage.success('已保存')
+
+  const payload = {
+    authors: form.authors.trim(),
+    title: form.title.trim(),
+    journal: form.journal.trim(),
+    year: form.year.trim(),
+    pages: form.pages.trim()
+  }
+
+  try {
+    if (editingId.value) {
+      await request.put(`/api/papers/${props.paperId}/references/${editingId.value}`, payload)
+      ElMessage.success('文献已更新')
+    } else {
+      await request.post(`/api/papers/${props.paperId}/references`, payload)
+      ElMessage.success('文献已添加')
+    }
+    dialogVisible.value = false
+    await loadRefs()
+  } catch (err) {
+    ElMessage.error(err?.response?.data?.message || '文献保存失败')
+  }
 }
 
-async function removeRef(idx) {
+async function removeRef(item) {
+  if (!props.paperId) {
+    return
+  }
   try {
     await ElMessageBox.confirm('确定删除该文献？', '确认', { type: 'warning' })
-    refs.value.splice(idx, 1)
-    emitChange()
+    await request.delete(`/api/papers/${props.paperId}/references/${item.id}`)
     ElMessage.success('已删除')
+    await loadRefs()
   } catch {}
 }
 
-// 格式化引用文本
-function formatRefText(ref) {
-  const parts = []
-  if (ref.authors) parts.push(ref.authors)
-  if (ref.title) parts.push(`《${ref.title}》`)
-  if (ref.journal) parts.push(ref.journal)
-  if (ref.year) parts.push(`${ref.year}`)
-  if (ref.volume) parts.push(`${ref.volume}(${ref.issue || ''})`)
-  if (ref.pages) parts.push(`:${ref.pages}`)
-  return parts.join('. ') || '未命名文献'
+async function citeRef(item) {
+  if (!props.paperId) {
+    return
+  }
+  try {
+    const res = await request.get(`/api/papers/${props.paperId}/references/${item.id}/marker`)
+    const marker = res?.data?.marker || `[${item.citationNo}]`
+    emit('cite', { marker, ref: item })
+  } catch {
+    ElMessage.error('获取引用标注失败')
+  }
 }
 </script>
 
 <template>
-  <div class="ref-panel">
+  <div class="ref-panel" v-loading="loading">
     <div class="ref-header">
       <h3 class="panel-title">参考文献</h3>
       <el-button type="primary" size="small" :icon="Plus" @click="openAdd">添加文献</el-button>
@@ -96,16 +148,13 @@ function formatRefText(ref) {
     </div>
 
     <div v-else class="ref-list">
-      <div
-        v-for="(ref, idx) in refs"
-        :key="ref.id"
-        class="ref-item"
-      >
-        <span class="ref-idx">[{{ idx + 1 }}]</span>
-        <span class="ref-text">{{ formatRefText(ref) }}</span>
+      <div v-for="ref in refs" :key="ref.id" class="ref-item">
+        <span class="ref-idx">[{{ ref.citationNo }}]</span>
+        <span class="ref-text">{{ ref.formattedText }}</span>
         <span class="ref-actions">
-          <el-button size="small" text :icon="Edit" @click="openEdit(idx)" />
-          <el-button size="small" text :icon="Delete" @click="removeRef(idx)" style="color:var(--danger)" />
+          <el-button size="small" text type="primary" @click="citeRef(ref)">引用</el-button>
+          <el-button size="small" text :icon="Edit" @click="openEdit(ref)" />
+          <el-button size="small" text :icon="Delete" @click="removeRef(ref)" style="color:var(--danger)" />
         </span>
       </div>
     </div>
@@ -113,7 +162,7 @@ function formatRefText(ref) {
     <!-- 编辑/添加对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="editingIdx >= 0 ? '编辑文献' : '添加文献'"
+      :title="editingId ? '编辑文献' : '添加文献'"
       width="580px"
       destroy-on-close
     >
@@ -125,26 +174,12 @@ function formatRefText(ref) {
           <el-form-item label="标题" required>
             <el-input v-model="form.title" placeholder="论文或专著标题" />
           </el-form-item>
-          <el-form-item label="刊物">
-            <el-input v-model="form.journal" placeholder="刊物名称" />
+          <el-form-item label="刊物" required>
+            <el-input v-model="form.journal" placeholder="发表刊物名称" />
           </el-form-item>
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="年份" label-width="50px">
-                <el-input v-model="form.year" placeholder="2024" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="卷" label-width="40px">
-                <el-input v-model="form.volume" placeholder="卷" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="期" label-width="40px">
-                <el-input v-model="form.issue" placeholder="期" />
-              </el-form-item>
-            </el-col>
-          </el-row>
+          <el-form-item label="年份" required>
+            <el-input v-model="form.year" placeholder="2024" />
+          </el-form-item>
           <el-form-item label="页码">
             <el-input v-model="form.pages" placeholder="1-10" />
           </el-form-item>
