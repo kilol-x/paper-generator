@@ -308,20 +308,25 @@ public class PaperExportService {
 
     // ── 字体 ──
     private Font getChineseFont(float size, int style) {
-        try {
-            String[][] fonts = {
-                {"C:/Windows/Fonts/simsun.ttc", "0"},
-                {"C:/Windows/Fonts/simhei.ttf", null},
-                {"C:/Windows/Fonts/msyh.ttc", "0"}
-            };
-            for (String[] f : fonts) {
+        String[][] fonts = {
+            {"C:/Windows/Fonts/simsun.ttc", "0"},
+            {"C:/Windows/Fonts/simhei.ttf", null},
+            {"C:/Windows/Fonts/msyh.ttc", "0"},
+            {"C:/Windows/Fonts/msyhbd.ttc", "0"},
+            {"C:/Windows/Fonts/msyhl.ttc", "0"}
+        };
+        for (String[] f : fonts) {
+            try {
                 if (Files.exists(Paths.get(f[0]))) {
                     String path = f[1] != null ? f[0] + "," + f[1] : f[0];
-                    BaseFont bf = BaseFont.createFont(path, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
+                    BaseFont bf = BaseFont.createFont(path, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
                     return new Font(bf, size, style);
                 }
+            } catch (Exception ignored) {
+                continue;
             }
-        } catch (Exception ignored) {}
+        }
+        // 所有字体都不可用 - 返回默认字体
         return new Font(Font.FontFamily.HELVETICA, size, style);
     }
 
