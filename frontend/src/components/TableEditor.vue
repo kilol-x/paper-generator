@@ -8,42 +8,9 @@ const emit = defineEmits(['update:modelValue', 'insert'])
 
 // ==================== 快速模板 ====================
 const TEMPLATES = [
-  {
-    key: 'three-line',
-    name: '三线表',
-    desc: '3列 × 3行',
-    rows: 3, cols: 3,
-    data: [
-      ['变量', '均值', '标准差'],
-      ['X₁', '3.45', '0.89'],
-      ['X₂', '2.17', '1.02']
-    ]
-  },
-  {
-    key: 'compare',
-    name: '对比表',
-    desc: '2列 × 4行',
-    rows: 4, cols: 2,
-    data: [
-      ['指标', '数值'],
-      ['实验组', '85.3'],
-      ['对照组', '72.1'],
-      ['差值', '13.2*']
-    ]
-  },
-  {
-    key: 'multi',
-    name: '多列表',
-    desc: '4列 × 5行',
-    rows: 5, cols: 4,
-    data: [
-      ['', '', '', ''],
-      ['', '', '', ''],
-      ['', '', '', ''],
-      ['', '', '', ''],
-      ['', '', '', '']
-    ]
-  }
+  { key: 'three-line', name: '三线表', desc: '3列 × 3行', rows: 3, cols: 3 },
+  { key: 'compare',    name: '对比表', desc: '2列 × 4行', rows: 4, cols: 2 },
+  { key: 'multi',      name: '多列表', desc: '4列 × 5行', rows: 5, cols: 4 },
 ]
 
 // ==================== 状态 ====================
