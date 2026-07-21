@@ -50,20 +50,24 @@ public class PaperExportService {
             return result;
         }
 
-        // 回退：从 Paper.content JSON 解析
+        // 从 Paper.content JSON 解析所有非特殊 section
         if (paper.getContent() != null && !paper.getContent().isBlank()) {
             try {
                 List<Map<String, Object>> sections = objectMapper.readValue(
                         paper.getContent(), new TypeReference<List<Map<String, Object>>>() {});
                 for (Map<String, Object> sec : sections) {
-                    String type = (String) sec.getOrDefault("type", "chapter");
-                    // 只处理普通章节
-                    if ("chapter".equals(type) || type == null) {
-                        String title = (String) sec.getOrDefault("title", "");
-                        String content = (String) sec.getOrDefault("content", "");
-                        int level = sec.get("level") instanceof Number ? ((Number) sec.get("level")).intValue() : 1;
-                        result.add(new ChapterInfo(title, content, level));
+                    String type = (String) sec.get("type");
+                    // 跳过 cover/abstract/toc - 这些由导出方法自己处理
+                    if ("cover".equals(type) || "abstract".equals(type) || "toc".equals(type)) continue;
+                    // references 和 acknowledgment 也需要处理
+                    String title = (String) sec.getOrDefault("title", "");
+                    Object contentObj = sec.get("content");
+                    String content = contentObj instanceof String ? (String)contentObj : "";
+                    int level = 1;
+                    if (sec.get("level") instanceof Number) {
+                        level = ((Number) sec.get("level")).intValue();
                     }
+                    result.add(new ChapterInfo(title, content, level));
                 }
             } catch (Exception ignored) {}
         }
@@ -308,25 +312,43 @@ public class PaperExportService {
 
     // ── 字体 ──
     private Font getChineseFont(float size, int style) {
-        String[][] fonts = {
-            {"C:/Windows/Fonts/simsun.ttc", "0"},
-            {"C:/Windows/Fonts/simhei.ttf", null},
-            {"C:/Windows/Fonts/msyh.ttc", "0"},
-            {"C:/Windows/Fonts/msyhbd.ttc", "0"},
-            {"C:/Windows/Fonts/msyhl.ttc", "0"}
+        // 使用 FontFactory 注册系统中文字体
+        String[] fontPaths = {
+            "C:/Windows/Fonts/simsun.ttc",
+            "C:/Windows/Fonts/simhei.ttf",
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/msyhbd.ttc",
+            "C:/Windows/Fonts/msyhl.ttc",
+            "C:/Windows/Fonts/deng.ttf",
+            "C:/Windows/Fonts/yahei.ttf",
+            "C:/Windows/Fonts/STSONG.TTF"
         };
-        for (String[] f : fonts) {
+        String[] fontNames = {
+            "SimSun", "SimHei", "Microsoft YaHei",
+            "Microsoft YaHei Bold", "Microsoft YaHei Light",
+            "DengXian", "YaHei", "STSong"
+        };
+        int idx = 0;
+        for (String fp : fontPaths) {
             try {
-                if (Files.exists(Paths.get(f[0]))) {
-                    String path = f[1] != null ? f[0] + "," + f[1] : f[0];
-                    BaseFont bf = BaseFont.createFont(path, BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
-                    return new Font(bf, size, style);
+                if (Files.exists(Paths.get(fp))) {
+                    FontFactory.register(fp, fontNames[idx]);
+                    Font f = FontFactory.getFont(fontNames[idx], BaseFont.IDENTITY_H, size, style);
+                    if (f != null && f.getBaseFont() != null) return f;
                 }
-            } catch (Exception ignored) {
-                continue;
-            }
+            } catch (Exception ignored) {}
+            idx++;
         }
-        // 所有字体都不可用 - 返回默认字体
+        // 最后的努力: 用 FontFactory 的默认注册
+        try {
+            Font f = FontFactory.getFont("SimSun", BaseFont.IDENTITY_H, size, style);
+            if (f != null && f.getBaseFont() != null) return f;
+        } catch (Exception ignored) {}
+        try {
+            Font f = FontFactory.getFont("SimHei", BaseFont.IDENTITY_H, size, style);
+            if (f != null && f.getBaseFont() != null) return f;
+        } catch (Exception ignored) {}
+        // 完全失败 - 返回 Helvetica
         return new Font(Font.FontFamily.HELVETICA, size, style);
     }
 

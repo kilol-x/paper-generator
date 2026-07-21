@@ -1,8 +1,10 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Download, FullScreen, View, Printer } from '@element-plus/icons-vue'
+import html2canvas from "html2canvas"
+import { jsPDF } from "jspdf"
 import axios from 'axios'
 import { extractEditorFonts } from '../../utils/fonts.js'
 
@@ -372,31 +374,41 @@ async function exportDocx() {
 // ═══════════════════════════════════════════════════
 async function exportPdf() {
   try {
-    // 优先尝试调用后端 PDF 导出接口
-    const token = localStorage.getItem('token') || localStorage.getItem('paper-access-token')
-    const response = await axios({
-      url: `http://localhost:8080/api/papers/${paperId}/export/pdf`,
-      method: 'GET',
-      responseType: 'blob',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      timeout: 30000
+    ElMessage.info('正在生成 PDF...')
+    const element = document.querySelector('.paper-a4')
+    if (!element) {
+      ElMessage.error('未找到论文内容')
+      return
+    }
+    const canvas = await html2canvas(element, {
+      scale: 2, useCORS: true, logging: false,
+      width: element.scrollWidth,
+      height: element.scrollHeight
     })
-    const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${paper.value?.title || '论文'}.pdf`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    ElMessage.success('PDF 文档导出成功')
+    const imgData = canvas.toDataURL('image/jpeg', 0.95)
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pdfW = 210
+    const pdfH = (canvas.height * pdfW) / canvas.width
+    let remain = pdfH
+    let pos = 0
+    pdf.addImage(imgData, 'JPEG', 0, pos, pdfW, pdfH)
+    remain -= 297
+    while (remain > 0) {
+      pos -= 297
+      pdf.addPage()
+      pdf.addImage(imgData, 'JPEG', 0, pos, pdfW, pdfH)
+      remain -= 297
+    }
+    const fn = (paper.value?.title || '论文') + '.pdf'
+    pdf.save(fn)
+    ElMessage.success('PDF 导出成功')
   } catch (e) {
-    // 后端导出失败，使用浏览器打印功能作为备选
-    console.warn('后端PDF导出不可用，使用浏览器打印功能', e)
-    ElMessage.info('后端PDF服务不可用，使用浏览器打印功能导出PDF...')
+    console.error('PDF error', e)
+    ElMessage.info('PDF 生成失败，使用浏览器打印...')
     setTimeout(() => { window.print() }, 500)
   }
 }
+
 
 // ═══════════════════════════════════════════════════
 // 工具函数
@@ -692,7 +704,7 @@ function buildRefText(ref, index) {
 /* ═══════ 封面 ═══════ */
 .cover-page { text-align: center; min-height: 1123px; padding: 80px 70px 60px; }
 .cover-school { font-size: 22px; font-weight: 600; margin-bottom: 50px; letter-spacing: 0.1em; }
-.cover-title {
+.cover-title { font-family: SimHei, 'Noto Serif SC', serif;
   font-family: "Noto Serif SC", "Microsoft YaHei", serif;
   font-size: 30px; font-weight: 700; color: #1a1a1a;
   margin: 0 0 16px; line-height: 1.4;
@@ -708,12 +720,12 @@ function buildRefText(ref, index) {
 .cover-row span { color: #242622; }
 
 /* ═══════ 章节 ═══════ */
-.section-heading {
+.section-heading { font-family: SimHei, 'Noto Serif SC', serif;
   font-family: "Noto Serif SC", serif;
   font-size: 22px; font-weight: 700; text-align: center;
   margin: 0 0 30px; letter-spacing: 0.15em;
 }
-.section-text { font-size: 15px; line-height: 1.9; color: #333; text-align: justify; }
+.section-text { font-family: SimSun, serif; font-size: 15px; line-height: 1.9; color: #333; text-align: justify; }
 .section-text :deep(p) { text-indent: 2em; margin: 0.6em 0; }
 .section-text :deep(img) { max-width: 100%; display: block; margin: 10px auto; }
 .section-text :deep(table) { border-collapse: collapse; width: 100%; margin: 0.8em 0; }
@@ -733,7 +745,7 @@ h3.chapter-head, .level-3 {
   font-size: var(--pv-h3-size, 16px);
   font-family: var(--pv-h3-font, "Noto Serif SC", serif); font-weight: 700;
 }
-h4.chapter-head, .level-4 { font-size: 15px; }
+h4.chapter-head, .level-4 { font-size: 15px; font-family: SimHei, sans-serif; }
 
 .keywords { margin-top: 16px; font-size: 14px; color: #555; line-height: 1.6; }
 .keywords strong { color: #242622; }

@@ -26,6 +26,8 @@
     "axios": "^1.6.0",
     "docx": "^9.7.1",
     "element-plus": "^2.14.3",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "pdfmake": "^0.3.11",
     "vite": "latest",
     "vue": "latest",
