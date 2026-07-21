@@ -272,7 +272,7 @@ function onKeydownHandler(e) {
 }
 
 // ==================== 保存 ====================
-async function savePaper() {
+async function savePaper({ mode = 'MANUAL_SAVE', silent = false } = {}) {
   if (saving.value) return
   saving.value = true
   try {
@@ -283,6 +283,7 @@ async function savePaper() {
         type: s.type, level: s.level, parentId: s.parentId,
         sortOrder: s.sortOrder
       })),
+      saveMode: mode,
       templateId: currentTemplateId.value || undefined,
       templateSnapshot: currentTemplateSnapshot.value
         ? JSON.stringify(currentTemplateSnapshot.value)
@@ -300,23 +301,15 @@ async function savePaper() {
       }
     }
 
-    // 保存版本快照
-    if (paperId.value) {
-      try {
-        await request.post(`/api/papers/${paperId.value}/versions`, {
-          versionNo: (res?.currentVersion || 0) + 1,
-          action: 'SAVE',
-          description: '手动保存',
-          contentSnapshot: JSON.stringify(payload.sections)
-        })
-      } catch { /* 版本接口可能不可用，静默跳过 */ }
-    }
-
     dirty.value = false
-    ElMessage.success('保存成功')
+    if (!silent) {
+      ElMessage.success('保存成功')
+    }
   } catch (err) {
     const msg = err?.response?.data?.message || '保存失败'
-    ElMessage.error(msg)
+    if (!silent) {
+      ElMessage.error(msg)
+    }
   } finally {
     saving.value = false
   }
@@ -326,7 +319,7 @@ async function savePaper() {
 function startAutoSave() {
   autoSaveTimer = setInterval(() => {
     if (dirty.value && paperId.value) {
-      savePaper()
+      savePaper({ mode: 'AUTO_SAVE', silent: true })
     }
   }, 30000)
 }
@@ -335,7 +328,7 @@ function startAutoSave() {
 function onGlobalKeydown(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault()
-    savePaper()
+    savePaper({ mode: 'MANUAL_SAVE' })
   }
 }
 
@@ -516,6 +509,19 @@ function onRestoreVersion(snapshot) {
     ElMessage.success('版本内容已加载，请手动保存')
   }
 }
+
+function onReferenceCite(payload) {
+  if (!payload?.marker) {
+    return
+  }
+  if (!activeSection.value || activeSection.value.type !== 'chapter') {
+    ElMessage.warning('请先在左侧选择一个正文章节，再插入引用标注')
+    return
+  }
+  activeSection.value.content = `${activeSection.value.content || ''}<sup>${payload.marker}</sup>`
+  dirty.value = true
+  ElMessage.success(`已插入引用 ${payload.marker}`)
+}
 </script>
 
 <template>
@@ -656,7 +662,11 @@ function onRestoreVersion(snapshot) {
 
         <!-- 参考文献面板 -->
         <div v-else-if="activeSectionId === 'meta-references'" class="panel-wrapper">
-          <ReferencePanel v-model="referencesData" />
+          <ReferencePanel
+            :paper-id="paperId"
+            v-model="referencesData"
+            @cite="onReferenceCite"
+          />
         </div>
 
         <!-- 致谢面板（使用富文本编辑器） -->
