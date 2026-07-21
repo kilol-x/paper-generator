@@ -191,7 +191,15 @@ onMounted(() => loadPapers())
 </template>
 
 <style scoped>
+/* ===== 覆盖 Element Plus 主题色为淡墨绿色 ===== */
 .papers-content {
+  --el-color-primary: #4f776a;
+  --el-color-primary-light-3: #729487;
+  --el-color-primary-light-5: #90aca2;
+  --el-color-primary-light-7: #b8cec6;
+  --el-color-primary-light-8: #d0dfd9;
+  --el-color-primary-light-9: #e8efec;
+  --el-color-primary-dark-2: #3f5f55;
   padding: 4px 0;
 }
 
@@ -211,10 +219,32 @@ onMounted(() => loadPapers())
 }
 
 .papers-table-wrap {
+  --el-color-primary: #4f776a;
+  --el-color-primary-light-3: #729487;
+  --el-color-primary-light-5: #90aca2;
+  --el-color-primary-light-7: #b8cec6;
+  --el-color-primary-light-8: #d0dfd9;
+  --el-color-primary-light-9: #e8efec;
+  --el-color-primary-dark-2: #3f5f55;
+  --el-fill-color-blank: #fff;
+  --el-border-radius-base: 8px;
   background: #fff;
   border: 1px solid #e4e3de;
   border-radius: 13px;
   overflow: hidden;
+}
+
+/* Element Plus 分页激活项颜色 */
+.papers-table-wrap :deep(.el-pager li.is-active) {
+  background-color: #4f776a !important;
+  color: #fff !important;
+}
+.papers-table-wrap :deep(.el-pager li:hover) {
+  color: #4f776a;
+}
+.papers-table-wrap :deep(.el-pagination .btn-prev:hover),
+.papers-table-wrap :deep(.el-pagination .btn-next:hover) {
+  color: #4f776a;
 }
 
 .title-cell {

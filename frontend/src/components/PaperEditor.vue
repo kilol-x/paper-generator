@@ -270,12 +270,18 @@ watch(() => editor.value, val => {
 </template>
 
 <style scoped>
+/* ================================================================
+   PaperEditor — 莫兰迪风格富文本编辑器
+   ================================================================ */
+
 .paper-editor {
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   background: var(--bg-card);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
 }
 
 /* ===== 工具栏 ===== */
@@ -283,30 +289,34 @@ watch(() => editor.value, val => {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 2px;
-  padding: 10px 12px;
-  background: var(--bg-page);
+  gap: 1px;
+  padding: 8px 14px;
+  background: #FAFAF8;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 
 .toolbar-group {
   display: flex;
-  gap: 1px;
+  gap: 2px;
 }
 
 .toolbar-group button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: var(--r-sm);
   background: transparent;
   color: var(--text-mute);
   font-size: 13px;
   cursor: pointer;
-  transition: background var(--t-fast), color var(--t-fast);
+  transition: all 0.15s ease;
+  position: relative;
 }
 
 .toolbar-group button:hover {
@@ -314,71 +324,127 @@ watch(() => editor.value, val => {
   color: var(--primary);
 }
 
+.toolbar-group button:active {
+  transform: scale(0.94);
+}
+
 .toolbar-group button.active {
-  background: var(--primary);
-  color: #fff;
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: inset 0 1px 2px rgba(79, 119, 106, 0.08);
 }
 
 .toolbar-divider {
   display: inline-block;
   width: 1px;
-  height: 20px;
+  height: 22px;
   background: var(--border);
-  margin: 0 8px;
+  margin: 0 10px;
   align-self: center;
+  border-radius: 1px;
 }
 
 /* ===== 编辑区域 ===== */
 .editor-body {
+  flex: 1;
   min-height: 400px;
-  max-height: 700px;
   overflow-y: auto;
 }
 
 .editor-body :deep(.tiptap-editor-content) {
-  padding: 24px 28px;
+  padding: 28px 34px;
   outline: none;
   font-size: 15px;
-  line-height: 1.8;
+  line-height: 1.85;
   color: var(--text-main);
+  min-height: 100%;
 }
 
-/* Placeholder */
+.editor-body::-webkit-scrollbar {
+  width: 6px;
+}
+.editor-body::-webkit-scrollbar-thumb {
+  background: #d0d3ce;
+  border-radius: 999px;
+}
+.editor-body::-webkit-scrollbar-thumb:hover {
+  background: #b4b8b2;
+}
+
+/* ---- Placeholder ---- */
 .editor-body :deep(.tiptap-editor-content p.is-editor-empty:first-child::before) {
   content: attr(data-placeholder);
   float: left;
-  color: var(--text-dim);
+  color: #c0c3bd;
   pointer-events: none;
   height: 0;
+  font-style: italic;
 }
 
-/* 标题 */
-.editor-body :deep(h1) { font-size: 1.8em; margin: 0.8em 0 0.4em; font-family: var(--font-heading); }
-.editor-body :deep(h2) { font-size: 1.5em; margin: 0.7em 0 0.3em; font-family: var(--font-heading); }
-.editor-body :deep(h3) { font-size: 1.25em; margin: 0.6em 0 0.2em; font-family: var(--font-heading); }
-.editor-body :deep(h4) { font-size: 1.1em; margin: 0.5em 0 0.2em; font-family: var(--font-heading); }
+/* ---- 标题 ---- */
+.editor-body :deep(h1) {
+  font-size: 1.75em;
+  margin: 0.8em 0 0.4em;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: #1d2b26;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.25em;
+}
+.editor-body :deep(h2) {
+  font-size: 1.45em;
+  margin: 0.7em 0 0.35em;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: #283832;
+}
+.editor-body :deep(h3) {
+  font-size: 1.2em;
+  margin: 0.6em 0 0.25em;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--text-main);
+}
+.editor-body :deep(h4) {
+  font-size: 1.05em;
+  margin: 0.5em 0 0.2em;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--text-mute);
+}
 
-/* 段落 */
-.editor-body :deep(p) { margin: 0.4em 0; }
+/* ---- 段落 ---- */
+.editor-body :deep(p) {
+  margin: 0.5em 0;
+  text-align: justify;
+}
 
-/* 图片 */
+/* ---- 图片 ---- */
 .editor-body :deep(img) {
   max-width: 100%;
   height: auto;
-  border-radius: var(--r-sm);
+  border-radius: var(--r);
   cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--t-fast);
+}
+.editor-body :deep(img:hover) {
+  box-shadow: var(--shadow-lg);
 }
 
-/* 表格 */
+/* ---- 表格 ---- */
 .editor-body :deep(table) {
   border-collapse: collapse;
   width: 100%;
   margin: 0.8em 0;
+  border-radius: var(--r);
+  overflow: hidden;
 }
 .editor-body :deep(th),
 .editor-body :deep(td) {
   border: 1px solid var(--border);
-  padding: 8px 12px;
+  padding: 9px 14px;
   text-align: left;
   min-width: 60px;
 }
@@ -386,18 +452,53 @@ watch(() => editor.value, val => {
   background: var(--bg-page);
   font-weight: 600;
   color: var(--text-main);
+  font-size: 13px;
 }
 
-/* 列表 */
+/* ---- 列表 ---- */
 .editor-body :deep(ul),
 .editor-body :deep(ol) {
-  padding-left: 1.5em;
+  padding-left: 1.6em;
 }
 .editor-body :deep(li) {
-  margin: 0.2em 0;
+  margin: 0.25em 0;
 }
 
-/* 选中表格时的操作手柄 */
+/* ---- 分割线 ---- */
+.editor-body :deep(hr) {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.2em 0;
+}
+
+/* ---- 代码块 ---- */
+.editor-body :deep(pre) {
+  background: #f7f7f5;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 18px;
+  font-size: 13px;
+  overflow-x: auto;
+}
+.editor-body :deep(code) {
+  background: #f0f1ed;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.9em;
+  color: #5c605a;
+}
+
+/* ---- 引用块 ---- */
+.editor-body :deep(blockquote) {
+  border-left: 3px solid var(--primary);
+  margin: 0.8em 0;
+  padding: 6px 16px;
+  background: var(--primary-tint);
+  border-radius: 0 var(--r) var(--r) 0;
+  color: var(--text-mute);
+}
+
+/* ---- 选中表格 ---- */
 .editor-body :deep(.selectedCell) {
   background: var(--primary-tint);
 }

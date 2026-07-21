@@ -80,7 +80,7 @@ const isEditing = computed(() => route.name === 'EditPaper')
   <div v-else class="shell"><aside><div class="brand"><i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></i><div><b>论文生成系统</b><small>一体化论文工作平台</small></div></div><div class="account-role"><small>当前身份</small><b>{{loginAccounts[session.role].label}}端</b></div>
 <nav v-if="role==='admin'"><button class="on">▦ 管理员系统</button></nav>
 <nav v-else-if="role==='student'">
-  <button :class="{on:route.name==='Papers'}" @click="router.push({name:'Papers'})">▦ 我的论文</button>
+  <button :class="{on:route.name==='Papers' && page==='overview'}" @click="router.push({name:'Papers'}); page='overview'">▦ 我的论文</button>
   <button :class="{on:page==='feedback'}" @click="page='feedback'">◷ 批阅反馈</button>
 </nav>
 <nav v-else><button :class="{on:page==='queue'}" @click="page='queue'">▦ 待批阅论文</button><button :class="{on:page==='review'}" @click="page='review'">✎ 当前批阅</button><button :class="{on:page==='history'}" @click="page='history'">◷ 版本历史</button></nav><div class="user">{{session.nickname||session.username}} · {{session.role}}</div></aside><main><header><h1>{{role==='admin'?'管理员系统':role==='student'?(page==='overview'?'我的论文':'教师批阅反馈'):(page==='queue'?'待批阅论文':page==='review'?'论文批阅工作台':'版本历史记录')}}</h1><div class="header-actions"><div v-if="role!=='admin'" class="state" :class="statusMap[state.status][1]">{{statusMap[state.status][0]}}　{{state.status==='RETURNED'?'🔓':'🔒'}}</div><button class="logout" @click="logout">退出登录</button></div></header><div class="content" :class="{flush:role==='admin'||(role==='student'&&page==='overview')}">
@@ -129,6 +129,18 @@ const isEditing = computed(() => route.name === 'EditPaper')
   --shadow-sm: 0 1px 3px rgba(0,0,0,.04);
   --shadow-lg: 0 8px 24px rgba(0,0,0,.06);
   --t-fast: .18s ease;
+
+  /* ===== Element Plus 主题色映射到项目莫兰迪绿 ===== */
+  --el-color-primary:       #4F776A;
+  --el-color-primary-light-3: #729487;
+  --el-color-primary-light-5: #90ACA2;
+  --el-color-primary-light-7: #B8CEC6;
+  --el-color-primary-light-8: #D0DFD9;
+  --el-color-primary-light-9: #E8EFEC;
+  --el-color-primary-dark-2:  #3F5F55;
+  --el-color-success:       #386858;
+  --el-color-warning:       #B8893E;
+  --el-color-danger:        #A8544D;
 }
 
 /* 编辑器全屏模式 */
