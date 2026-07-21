@@ -48,8 +48,22 @@ const showChangeTplPicker = ref(false)
 
 let idCounter = 0
 let autoSaveTimer = null
+const levelPickerParentId = ref(undefined)  // null=root, undefined=closed, string=parentId
+const maxHeadingLevel = ref(3)             // 模板规定的最大标题层级
 
 // ==================== 计算属性 ====================
+
+/** 从模板快照中解析 formatJson，供编辑器自动套用模板字体 */
+const editorFormatConfig = computed(() => {
+  const snap = currentTemplateSnapshot.value
+  if (!snap?.formatJson) return undefined
+  try {
+    return typeof snap.formatJson === 'string'
+      ? JSON.parse(snap.formatJson)
+      : snap.formatJson
+  } catch { return undefined }
+})
+
 const activeSection = computed(() =>
   sections.value.find(s => s.id === activeSectionId.value) || null
 )
@@ -134,25 +148,91 @@ function genId() {
   return `sec_${Date.now()}_${idCounter++}`
 }
 
-function addSection(parentId = null) {
-  const siblings = chaptersOnly.value.filter(s => s.parentId === parentId)
-  const level = parentId
-    ? ((sections.value.find(s => s.id === parentId)?.level || 1) + 1)
-    : 1
+/**
+ * 从模板 snapshot 的 structureJson 中提取 chapters.maxLevel
+ */
+function extractMaxLevelFromSnapshot(snap) {
+  try {
+    const structure = typeof snap?.structureJson === 'string'
+      ? JSON.parse(snap.structureJson)
+      : snap?.structureJson
+    if (!structure?.sections) return 3
+    const chaptersSec = structure.sections.find(s => s.key === 'chapters')
+    if (chaptersSec?.maxLevel) {
+      const v = Number(chaptersSec.maxLevel)
+      return v >= 1 && v <= 5 ? v : 3
+    }
+  } catch { /* ignore */ }
+  return 3
+}
 
-  sections.value.push({
+/** 打开层级选择器：parentId 为 null → 根章节，字符串 → 某章节的子章节 */
+function openLevelPicker(parentId) {
+  levelPickerParentId.value = parentId
+}
+
+/** 当前待添加位置的父章节名称（供弹窗展示） */
+const currentParentId = computed(() => levelPickerParentId.value)
+const isAddingChild = computed(() => !!levelPickerParentId.value) // true=子章节，false=根
+
+const pendingParentTitle = computed(() => {
+  const pid = levelPickerParentId.value
+  if (!pid) return ''
+  const parent = sections.value.find(s => s.id === pid)
+  return parent?.title || ''
+})
+
+/** 子章节可选起始层级：必须严格大于父级层级 */
+const minChildLevel = computed(() => {
+  const pid = levelPickerParentId.value
+  if (!pid) return 1
+  const parent = sections.value.find(s => s.id === pid)
+  return (parent?.level || 1) + 1
+})
+
+function onLevelPicked(level) {
+  // 🔑 在清空 ref 之前先保存 parentId（null=根，string=子）
+  const pid = levelPickerParentId.value
+  levelPickerParentId.value = undefined   // 关闭弹窗
+  addSection(pid, level)
+}
+
+function addSection(parentId, targetLevel) {
+  const MAX_LEVEL = maxHeadingLevel.value
+  const parentSection = parentId ? sections.value.find(s => s.id === parentId) : null
+
+  // 子章节层级必须 > 父级，顶级无限制
+  const minLevel = parentSection ? parentSection.level + 1 : 1
+  const level = Math.max(minLevel, Math.min(targetLevel ?? minLevel, MAX_LEVEL))
+
+  const siblings = chaptersOnly.value.filter(s => s.parentId === parentId)
+
+  const headingLabel = ['', '一级标题', '二级标题', '三级标题', '四级标题', '五级标题']
+  const newSection = {
     id: genId(),
-    title: `新章节 ${chaptersOnly.value.length + 1}`,
+    title: `${headingLabel[level] || level + '级标题'} ${chaptersOnly.value.length + 1}`,
     content: '',
     type: 'chapter',
-    level: Math.min(level, 4),
-    parentId,
+    level,
+    parentId: parentId || null,   // null 或父章节 id 字符串
     sortOrder: siblings.length
-  })
+  }
+  sections.value.push(newSection)
 
-  const newId = sections.value[sections.value.length - 1].id
-  activeSectionId.value = newId
-  startRenameTitle(newId)
+  // 🔍 调试日志：确认 parentId 正确传递（上线后可删除）
+  console.log('[addSection]', {
+    parentId_in: parentId,
+    isRoot: parentId === null || parentId === undefined,
+    parentTitle: parentSection?.title || '(根)',
+    newId: newSection.id,
+    newLevel: level,
+    newParentId: newSection.parentId
+  })
+  console.log('[Chapters tree] root chapters:',
+    chaptersOnly.value.filter(s => !s.parentId).map(s => s.title + ' [' + s.level + ']'))
+
+  activeSectionId.value = newSection.id
+  startRenameTitle(newSection.id)
   dirty.value = true
 }
 
@@ -360,6 +440,7 @@ async function loadPaper() {
           : data.templateSnapshot
         currentTemplateSnapshot.value = snap
         currentTemplateName.value = snap.templateName || ''
+        maxHeadingLevel.value = extractMaxLevelFromSnapshot(snap)
         // 首次进入（章节为空）时按模板骨架生成
         const hasChapters = sections.value.some(s => !s.type || s.type === 'chapter')
         if (!hasChapters && snap.structureJson) {
@@ -459,6 +540,7 @@ function onTemplateChanged(templateData) {
     coverFields: cfg.coverFields || '',
   }
   currentTemplateSnapshot.value = snapshot
+  maxHeadingLevel.value = extractMaxLevelFromSnapshot(snapshot)
   applyTemplateSkeleton(snapshot, { keepCover: true })
   // 重置选中章节
   const firstChapter = chaptersOnly.value[0]
@@ -582,7 +664,7 @@ function onReferenceCite(payload) {
         <template v-if="sidebarTab === 'outline'">
           <div class="sidebar-header">
             <span class="sidebar-title">论文结构</span>
-            <el-button size="small" :icon="Plus" circle @click="addSection(null)" title="添加顶级章节" />
+            <el-button size="small" :icon="Plus" circle @click="openLevelPicker(null)" title="添加章节" />
           </div>
 
           <div class="section-list">
@@ -617,7 +699,7 @@ function onReferenceCite(payload) {
               :editing-id="editingTitleId"
               :editing-value="editingTitleValue"
               @select="activeSectionId = $event"
-              @add="addSection"
+              @add="openLevelPicker"
               @remove="removeSection"
               @edit="(data) => startRenameTitle(data.id)"
               @finish-edit="finishRenameTitle"
@@ -630,7 +712,7 @@ function onReferenceCite(payload) {
           </div>
 
           <div v-if="chaptersOnly.length === 0 && sections.length <= SPECIAL_SECTIONS.length" class="sidebar-empty">
-            <el-button type="primary" :icon="Plus" @click="addSection(null)">添加章节</el-button>
+            <el-button type="primary" :icon="Plus" @click="openLevelPicker(null)">添加章节</el-button>
           </div>
         </template>
 
@@ -676,6 +758,7 @@ function onReferenceCite(payload) {
             :key="'ack'"
             :model-value="sections.find(s => s.id === 'meta-acknowledgment')?.content || ''"
             placeholder="撰写致谢…"
+            :format-config="editorFormatConfig"
             @update:model-value="onAcknowledgmentChange"
           />
         </div>
@@ -686,6 +769,7 @@ function onReferenceCite(payload) {
             :key="activeSection.id"
             :model-value="activeSection.content"
             :placeholder="`撰写「${activeSection.title}」内容…`"
+            :format-config="editorFormatConfig"
             @update:model-value="onContentChange"
           />
           <!-- 引用提示 -->
@@ -707,6 +791,38 @@ function onReferenceCite(payload) {
       v-model="showChangeTplPicker"
       @confirm="onTemplateChanged"
     />
+
+    <!-- 层级选择弹出层 -->
+    <Teleport to="body">
+      <div v-if="levelPickerParentId !== undefined" class="lp-overlay" @click.self="levelPickerParentId = undefined">
+        <div class="lp-popover">
+          <div class="lp-title">选择标题层级</div>
+          <div class="lp-desc">
+            <template v-if="isAddingChild">
+              作为「<strong>{{ pendingParentTitle }}</strong>」的子章节 · 模板最多 {{ maxHeadingLevel }} 级
+            </template>
+            <template v-else>
+              新增根章节 · 模板最多支持 {{ maxHeadingLevel }} 级标题
+            </template>
+          </div>
+          <div class="lp-options">
+            <button
+              v-for="lv in maxHeadingLevel"
+              :key="lv"
+              class="lp-option"
+              :class="{ disabled: lv < minChildLevel }"
+              :disabled="lv < minChildLevel"
+              @click="lv >= minChildLevel && onLevelPicked(lv)"
+            >
+              <span class="lp-badge">H{{ lv }}</span>
+              <span class="lp-label">{{ ['','一级标题','二级标题','三级标题','四级标题','五级标题'][lv] }}</span>
+              <span v-if="lv < minChildLevel" class="lp-hint">需比父级深</span>
+            </button>
+          </div>
+          <button class="lp-cancel" @click="levelPickerParentId = undefined">取消</button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -960,5 +1076,83 @@ function onReferenceCite(payload) {
     box-shadow: var(--shadow-lg);
   }
   .save-status { display: none; }
+}
+</style>
+
+<style>
+/* ================================================================
+   层级选择弹出层（Teleport to body，需非 scoped 样式）
+   ================================================================ */
+.lp-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(36,38,34,.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.lp-popover {
+  background: #fff; border-radius: 14px; padding: 26px 30px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.15);
+  min-width: 280px; max-width: 340px; text-align: center;
+  animation: lpFadeIn .18s ease;
+}
+@keyframes lpFadeIn {
+  from { opacity: 0; transform: translateY(8px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.lp-title {
+  font-family: var(--font-heading, "Noto Serif SC", serif);
+  font-size: 18px; font-weight: 700; color: #242622; margin-bottom: 4px;
+}
+.lp-desc {
+  font-size: 12px; color: #858982; margin-bottom: 18px; line-height: 1.5;
+}
+.lp-desc strong {
+  color: #4f776a;
+}
+.lp-options {
+  display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;
+}
+.lp-option {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 11px 14px;
+  border: 2px solid #e4e3de; border-radius: 10px;
+  background: #fff; cursor: pointer; text-align: left;
+  transition: all .15s;
+}
+.lp-option:hover:not(:disabled) {
+  border-color: #4f776a; background: #f4f7f5;
+}
+.lp-option:disabled,
+.lp-option.disabled {
+  opacity: 0.35; cursor: not-allowed;
+}
+.lp-option:disabled:hover,
+.lp-option.disabled:hover {
+  border-color: #e4e3de; background: #fff;
+}
+.lp-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px;
+  background: #e8ece9; color: #4f776a;
+  border-radius: 8px; font-size: 13px; font-weight: 700;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+.lp-option:hover:not(:disabled) .lp-badge {
+  background: #4f776a; color: #fff;
+}
+.lp-label {
+  font-size: 14px; font-weight: 500; color: #242622; flex: 1;
+}
+.lp-hint {
+  font-size: 11px; color: #c0c3bd; font-style: italic;
+}
+.lp-cancel {
+  border: 1px solid #d8d9d4; border-radius: 8px;
+  background: #fff; color: #858982;
+  padding: 8px 20px; font-size: 13px; cursor: pointer;
+  transition: all .12s;
+}
+.lp-cancel:hover {
+  background: #f0f1ed; color: #5c605a;
 }
 </style>

@@ -7,13 +7,19 @@ import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { TextAlign } from '@tiptap/extension-text-align'
+import { TextStyle } from '@tiptap/extension-text-style'
+import { FontFamily } from '@tiptap/extension-font-family'
 import { Underline } from '@tiptap/extension-underline'
 import { Placeholder } from '@tiptap/extension-placeholder'
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount, computed } from 'vue'
+import { extractEditorFonts } from '../utils/fonts.js'
+import TableEditor from './TableEditor.vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
-  placeholder: { type: String, default: '开始撰写论文…' }
+  placeholder: { type: String, default: '开始撰写论文…' },
+  /** 模板 formatJson 解析后的对象，用于自动套用模板字体 */
+  formatConfig: { type: Object, default: undefined }
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -23,9 +29,11 @@ const editor = useEditor({
   content: props.modelValue,
   extensions: [
     StarterKit.configure({
-      heading: { levels: [1, 2, 3, 4] }
+      heading: false       // 章节标题由侧边栏大纲控制，编辑区内不产生 h1-h4
     }),
     Underline,
+    TextStyle,         // 文本样式（font-family 的前置依赖）
+    FontFamily,        // 字体切换
     ResizableImage.configure({
       inline: true,
       allowBase64: true
@@ -37,7 +45,7 @@ const editor = useEditor({
     TableCell,
     TableHeader,
     TextAlign.configure({
-      types: ['heading', 'paragraph']
+      types: ['paragraph']   // 只对段落生效，标题由模板样式控制
     }),
     Placeholder.configure({
       placeholder: props.placeholder
@@ -85,14 +93,41 @@ function handleImageUpload(event) {
 }
 
 // ========== 表格插入 ==========
-function insertTable() {
-  editor.value?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+const showTableEditor = ref(false)
+
+function openTableEditor() {
+  showTableEditor.value = true
 }
+
+function onTableInsert(html) {
+  editor.value?.chain().focus().insertContent(html).run()
+}
+
+// ========== 字体选择 ==========
+const FONT_FAMILIES = [
+  { label: '默认',   value: '' },
+  { label: '宋体',   value: '"SimSun", "Songti SC", "Noto Serif SC", serif' },
+  { label: '黑体',   value: '"SimHei", "Heiti SC", "PingFang SC", "Microsoft YaHei", sans-serif' },
+  { label: '楷体',   value: '"KaiTi", "Kaiti SC", "Noto Serif SC", serif' },
+  { label: '仿宋',   value: '"FangSong", "FangSongti SC", "Noto Serif SC", serif' },
+  { label: '微软雅黑', value: '"Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif' },
+  { label: 'Times New Roman', value: '"Times New Roman", "Noto Serif SC", serif' },
+]
+
+function setFontFamily(value) {
+  if (!value) {
+    editor.value?.chain().focus().unsetFontFamily().run()
+  } else {
+    editor.value?.chain().focus().setFontFamily(value).run()
+  }
+}
+
+// 当前选中区域的字体
+const currentFont = ref('')
 
 // ========== 各按钮状态 ==========
 const active = ref({
   bold: false, italic: false, underline: false,
-  heading1: false, heading2: false, heading3: false, heading4: false,
   alignLeft: false, alignCenter: false, alignRight: false, alignJustify: false,
   bulletList: false, orderedList: false
 })
@@ -104,10 +139,6 @@ function updateStates() {
     bold: e.isActive('bold'),
     italic: e.isActive('italic'),
     underline: e.isActive('underline'),
-    heading1: e.isActive('heading', { level: 1 }),
-    heading2: e.isActive('heading', { level: 2 }),
-    heading3: e.isActive('heading', { level: 3 }),
-    heading4: e.isActive('heading', { level: 4 }),
     bulletList: e.isActive('bulletList'),
     orderedList: e.isActive('orderedList'),
     alignLeft: e.isActive({ textAlign: 'left' }),
@@ -115,6 +146,8 @@ function updateStates() {
     alignRight: e.isActive({ textAlign: 'right' }),
     alignJustify: e.isActive({ textAlign: 'justify' })
   }
+  // 追踪当前字体
+  currentFont.value = e.getAttributes('textStyle').fontFamily || ''
 }
 
 // 监听编辑器选区变化
@@ -124,6 +157,16 @@ watch(() => editor.value, val => {
     val.on('transaction', updateStates)
   }
 }, { immediate: true })
+
+// ========== 模板字体自动套用 ==========
+const editorFontStyles = computed(() => {
+  const fonts = extractEditorFonts(props.formatConfig)
+  const style = {}
+  if (fonts.bodyFont)      style['--editor-body-font']       = fonts.bodyFont
+  if (fonts.bodyFontSize)  style['--editor-body-font-size']  = fonts.bodyFontSize + 'pt'
+  if (fonts.bodyLineHeight) style['--editor-body-line-height'] = fonts.bodyLineHeight
+  return style
+})
 </script>
 
 <template>
@@ -157,17 +200,21 @@ watch(() => editor.value, val => {
 
       <span class="toolbar-divider" />
 
-      <!-- 标题 -->
+      <!-- 字体选择（仅字体，不含字号） -->
       <div class="toolbar-group">
-        <button
-          v-for="level in [1, 2, 3, 4]"
-          :key="level"
-          :class="{ active: active[`heading${level}`] }"
-          :title="`标题 ${level}`"
-          @click="editor.chain().focus().toggleHeading({ level }).run()"
+        <select
+          class="font-select"
+          :value="currentFont"
+          @change="setFontFamily($event.target.value)"
+          title="选择字体"
         >
-          H{{ level }}
-        </button>
+          <option
+            v-for="f in FONT_FAMILIES"
+            :key="f.value"
+            :value="f.value"
+            :style="{ fontFamily: f.value || 'inherit' }"
+          >{{ f.label }}</option>
+        </select>
       </div>
 
       <span class="toolbar-divider" />
@@ -252,7 +299,7 @@ watch(() => editor.value, val => {
           style="display: none"
           @change="handleImageUpload"
         />
-        <button title="插入表格" @click="insertTable">
+        <button title="插入表格" @click="openTableEditor">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
             <rect x="1" y="1" width="14" height="14" rx="1" stroke="currentColor" fill="none" stroke-width="1.2"/>
             <line x1="6" y1="1" x2="6" y2="15" stroke="currentColor" stroke-width="0.8"/>
@@ -265,7 +312,10 @@ watch(() => editor.value, val => {
     </div>
 
     <!-- 编辑区域 -->
-    <editor-content :editor="editor" class="editor-body" />
+    <editor-content :editor="editor" class="editor-body" :style="editorFontStyles" />
+
+    <!-- 表格插入弹窗 -->
+    <TableEditor v-model="showTableEditor" @insert="onTableInsert" />
   </div>
 </template>
 
@@ -345,6 +395,29 @@ watch(() => editor.value, val => {
   border-radius: 1px;
 }
 
+/* ---- 字体选择下拉框 ---- */
+.font-select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 100px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+.font-select:hover {
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+.font-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 119, 106, 0.08);
+}
+
 /* ===== 编辑区域 ===== */
 .editor-body {
   flex: 1;
@@ -355,10 +428,12 @@ watch(() => editor.value, val => {
 .editor-body :deep(.tiptap-editor-content) {
   padding: 28px 34px;
   outline: none;
-  font-size: 15px;
-  line-height: 1.85;
+  font-size: var(--editor-body-font-size, 15px);
+  line-height: var(--editor-body-line-height, 1.85);
   color: var(--text-main);
   min-height: 100%;
+  /* 模板字体：由 formatConfig.body.font 自动注入，无模板时回退到系统默认 */
+  font-family: var(--editor-body-font, "SimSun", "Songti SC", "Noto Serif SC", serif);
 }
 
 .editor-body::-webkit-scrollbar {
@@ -382,39 +457,7 @@ watch(() => editor.value, val => {
   font-style: italic;
 }
 
-/* ---- 标题 ---- */
-.editor-body :deep(h1) {
-  font-size: 1.75em;
-  margin: 0.8em 0 0.4em;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  color: #1d2b26;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.25em;
-}
-.editor-body :deep(h2) {
-  font-size: 1.45em;
-  margin: 0.7em 0 0.35em;
-  font-family: var(--font-heading);
-  font-weight: 600;
-  color: #283832;
-}
-.editor-body :deep(h3) {
-  font-size: 1.2em;
-  margin: 0.6em 0 0.25em;
-  font-family: var(--font-heading);
-  font-weight: 600;
-  color: var(--text-main);
-}
-.editor-body :deep(h4) {
-  font-size: 1.05em;
-  margin: 0.5em 0 0.2em;
-  font-family: var(--font-heading);
-  font-weight: 600;
-  color: var(--text-mute);
-}
-
-/* ---- 段落 ---- */
+/* ---- 段落（章节正文，标题由侧边栏大纲/模板层级控制，编辑区不产出 h1-h4） ---- */
 .editor-body :deep(p) {
   margin: 0.5em 0;
   text-align: justify;
@@ -483,26 +526,57 @@ watch(() => editor.value, val => {
   cursor: nwse-resize;
 }
 
-/* ---- 表格 ---- */
+/* ---- 表格（默认全框线） ---- */
 .editor-body :deep(table) {
   border-collapse: collapse;
   width: 100%;
   margin: 0.8em 0;
-  border-radius: var(--r);
-  overflow: hidden;
 }
 .editor-body :deep(th),
 .editor-body :deep(td) {
   border: 1px solid var(--border);
   padding: 9px 14px;
-  text-align: left;
+  text-align: center;
   min-width: 60px;
+  font-size: 10.5pt;
 }
 .editor-body :deep(th) {
   background: var(--bg-page);
   font-weight: 600;
   color: var(--text-main);
-  font-size: 13px;
+  font-size: 10.5pt;
+}
+
+/* ---- 三线表（学术论文格式） ---- */
+.editor-body :deep(.table-three-line) {
+  /* 容器不设边框，只靠 th/td 画出三线 */
+}
+.editor-body :deep(.table-three-line th) {
+  border: none;
+  border-top: 1.5pt solid #000;
+  border-bottom: 0.75pt solid #000;
+  padding: 6px 10px;
+  background: transparent;
+  font-weight: 600;
+  font-size: 10.5pt;
+  text-align: center;
+}
+.editor-body :deep(.table-three-line td) {
+  border: none;
+  padding: 6px 10px;
+  font-size: 10.5pt;
+  text-align: center;
+}
+.editor-body :deep(.table-three-line tr:last-child td) {
+  border-bottom: 1.5pt solid #000;
+}
+
+/* 三线表内可选居中 */
+.editor-body :deep(.table-three-line caption) {
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 6px;
+  font-size: 10.5pt;
 }
 
 /* ---- 列表 ---- */

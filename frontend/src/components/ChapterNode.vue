@@ -52,10 +52,13 @@ function onDrop(e, targetId) {
 </script>
 
 <template>
-  <div class="cn-wrap">
+  <div class="chapter-wrap">
     <div
-      class="cn-row"
-      :class="{ active: section.id === activeId, 'is-drag': dragId === section.id }"
+      class="chapter-row"
+      :class="{
+        'chapter-row--active': section.id === activeId,
+        'chapter-row--dragging': dragId === section.id
+      }"
       :style="{ paddingLeft: `${12 + indent}px` }"
       draggable="true"
       @click.stop="emit('select', section.id)"
@@ -63,49 +66,47 @@ function onDrop(e, targetId) {
       @dragover="onDragOver"
       @drop="onDrop($event, section.id)"
     >
-      <span class="cn-toggle" :class="{ inv: children.length === 0 }">
+      <!-- 折叠/展开指示器 -->
+      <span class="chapter-caret" :class="{ 'chapter-caret--hidden': children.length === 0 }">
         <svg v-if="children.length > 0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </span>
-      <span class="cn-drag" title="拖拽排序">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+
+      <!-- 拖拽手柄 — 始终可见 -->
+      <span class="chapter-grip" title="拖拽排序">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
       </span>
 
-      <span class="cn-sort-btns">
-        <button class="cn-sb" title="上移" @click.stop="emit('move', section.id, -1)">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-        </button>
-        <button class="cn-sb" title="下移" @click.stop="emit('move', section.id, 1)">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-      </span>
-
+      <!-- 标题 / 编辑框 -->
       <input
         v-if="editingId === section.id"
-        class="cn-input"
+        class="chapter-input"
         :value="editingValue"
         @click.stop
         @input="emit('update-editing', $event.target.value)"
         @keydown="emit('keydown', $event)"
         @blur="emit('finish-edit')"
       />
-      <span v-else class="cn-title">{{ section.title }}</span>
+      <span v-else class="chapter-title">{{ section.title }}</span>
 
-      <span class="cn-wc">{{ countWords(section.content) }}字</span>
+      <!-- 字数 -->
+      <span class="chapter-wordcount">{{ countWords(section.content) }}字</span>
 
-      <span class="cn-actions">
-        <button class="cn-btn" title="添加子章节" @click.stop="emit('add', section.id)">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <!-- 操作按钮 — 始终可见，无任何 hover 依赖 -->
+      <span class="chapter-btns">
+        <button class="chapter-btn" title="添加子章节" @click.stop="emit('add', section.id)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <button class="cn-btn" title="重命名" @click.stop="emit('edit', { id: section.id, title: section.title })">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+        <button class="chapter-btn" title="重命名" @click.stop="emit('edit', { id: section.id, title: section.title })">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
         </button>
-        <button class="cn-btn danger" title="删除" @click.stop="emit('remove', section.id)">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <button class="chapter-btn chapter-btn--danger" title="删除" @click.stop="emit('remove', section.id)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </span>
     </div>
 
+    <!-- 递归子节点 -->
     <ChapterNode
       v-for="child in children"
       :key="child.id"
@@ -129,41 +130,115 @@ function onDrop(e, targetId) {
 </template>
 
 <style scoped>
-.cn-wrap { user-select: none; }
-.cn-row {
-  display: flex; align-items: center; gap: 4px;
-  padding: 6px 12px; cursor: pointer; font-size: 13px;
-  color: var(--text-main); border-left: 3px solid transparent;
-  transition: all 0.12s; position: relative;
+/* ================================================================
+   ChapterNode — 章节树节点（全新 CSS，无 hover-only 显示逻辑）
+   ================================================================ */
+
+.chapter-wrap {
+  user-select: none;
 }
-.cn-row:hover { background: #f7f8f4; }
-.cn-row.active {
-  background: var(--primary-tint, #e8efec); color: var(--primary);
-  border-left-color: var(--primary); font-weight: 600;
+
+.chapter-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-main, #242622);
+  border-left: 3px solid transparent;
+  transition: background 0.12s;
 }
-.cn-row.is-drag { opacity: 0.35; }
+.chapter-row:hover {
+  background: #f7f8f4;
+}
+.chapter-row--active {
+  background: var(--primary-tint, #e8efec);
+  color: var(--primary, #4f776a);
+  border-left-color: var(--primary, #4f776a);
+  font-weight: 600;
+}
+.chapter-row--dragging {
+  opacity: 0.35;
+}
 
-.cn-toggle { width: 14px; font-size: 10px; color: var(--text-dim); flex-shrink: 0; }
-.cn-toggle.inv { visibility: hidden; }
+/* ---- 折叠箭头 ---- */
+.chapter-caret {
+  width: 14px;
+  color: var(--text-dim, #858982);
+  flex-shrink: 0;
+}
+.chapter-caret--hidden {
+  visibility: hidden;
+}
 
-.cn-drag { color: var(--text-dim); font-size: 10px; cursor: grab; letter-spacing: -2px; flex-shrink: 0; opacity: 0; }
-.cn-row:hover .cn-drag { opacity: 0.5; }
+/* ---- 拖拽手柄（始终可见） ---- */
+.chapter-grip {
+  color: #bfbdb6;
+  flex-shrink: 0;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+}
+.chapter-grip:hover {
+  color: var(--primary, #4f776a);
+}
 
-.cn-sort-btns { display: none; flex-shrink: 0; gap: 1px; }
-.cn-row:hover .cn-sort-btns { display: flex; }
-.cn-sb { border: none; background: transparent; color: var(--text-dim); font-size: 10px; padding: 1px 3px; cursor: pointer; border-radius: 3px; }
-.cn-sb:hover { background: var(--primary-tint); color: var(--primary); }
+/* ---- 标题 ---- */
+.chapter-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 
-.cn-input { flex: 1; border: 1px solid var(--primary); border-radius: 4px; padding: 2px 6px; font-size: 13px; outline: none; min-width: 0; }
+/* ---- 内联输入框 ---- */
+.chapter-input {
+  flex: 1;
+  border: 1px solid var(--primary, #4f776a);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 13px;
+  outline: none;
+  min-width: 0;
+}
 
-.cn-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* ---- 字数 ---- */
+.chapter-wordcount {
+  font-size: 10px;
+  color: #bfbdb6;
+  flex-shrink: 0;
+}
 
-.cn-wc { font-size: 10px; color: var(--text-dim); flex-shrink: 0; opacity: 0; transition: opacity .12s; }
-.cn-row:hover .cn-wc { opacity: 1; }
+/* ---- 操作按钮容器（始终可见） ---- */
+.chapter-btns {
+  flex-shrink: 0;
+  display: flex !important;
+  gap: 2px;
+}
 
-.cn-actions { display: none; gap: 2px; flex-shrink: 0; }
-.cn-row:hover .cn-actions { display: flex; }
-.cn-btn { border: none; background: transparent; width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-dim); transition: all .1s; }
-.cn-btn:hover { background: var(--primary-tint); color: var(--primary); }
-.cn-btn.danger:hover { background: #fce4e2; color: #d35b4e; }
+/* ---- 单个操作按钮 ---- */
+.chapter-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  color: #bfbdb6;
+  padding: 0;
+  transition: background 0.1s, color 0.1s;
+}
+.chapter-btn:hover {
+  background: var(--primary-tint, #e8efec);
+  color: var(--primary, #4f776a);
+}
+.chapter-btn--danger:hover {
+  background: #fce4e2;
+  color: #d35b4e;
+}
 </style>
