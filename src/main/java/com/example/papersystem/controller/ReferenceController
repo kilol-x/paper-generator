@@ -1,0 +1,195 @@
+package com.example.papersystem.controller;
+
+import com.example.papersystem.common.Result;
+import com.example.papersystem.entity.Paper;
+import com.example.papersystem.entity.ReferenceEntry;
+import com.example.papersystem.repository.ReferenceEntryRepository;
+import com.example.papersystem.service.PaperService;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/papers/{paperId}/references")
+public class ReferenceController {
+
+    @Autowired
+    private PaperService paperService;
+
+    @Autowired
+    private ReferenceEntryRepository referenceEntryRepository;
+
+    @Autowired
+    private HttpServletRequest request;
+
+    private static final int MAX_REFERENCES = 200;
+
+    @GetMapping
+    public Result<List<ReferenceEntry>> list(@PathVariable Long paperId) {
+        Result<Void> accessResult = checkAccess(paperId);
+        if (accessResult != null) {
+            return Result.error(accessResult.getCode(), accessResult.getMessage());
+        }
+        List<ReferenceEntry> list = referenceEntryRepository.findByPaperIdOrderByCitationNoAscCreatedAtAsc(paperId);
+        return Result.success("查询成功", list);
+    }
+
+    @PostMapping
+    public Result<ReferenceEntry> create(@PathVariable Long paperId, @RequestBody Map<String, Object> body) {
+        Result<Void> accessResult = checkAccess(paperId);
+        if (accessResult != null) {
+            return Result.error(accessResult.getCode(), accessResult.getMessage());
+        }
+        if (referenceEntryRepository.countByPaperId(paperId) >= MAX_REFERENCES) {
+            return Result.error(400, "单篇论文最多 200 条参考文献");
+        }
+
+        ReferenceEntry entry = parseBody(body, new ReferenceEntry());
+        if (entry == null) {
+            return Result.error(400, "作者、标题、发表刊物和出版年份不能为空");
+        }
+        entry.setPaperId(paperId);
+        entry.setCitationNo(referenceEntryRepository.findByPaperIdOrderByCitationNoAscCreatedAtAsc(paperId).size() + 1);
+        entry.setFormattedText(formatReference(entry));
+        return Result.success("新增成功", referenceEntryRepository.save(entry));
+    }
+
+    @PutMapping("/{referenceId}")
+    public Result<ReferenceEntry> update(@PathVariable Long paperId,
+                                         @PathVariable Long referenceId,
+                                         @RequestBody Map<String, Object> body) {
+        Result<Void> accessResult = checkAccess(paperId);
+        if (accessResult != null) {
+            return Result.error(accessResult.getCode(), accessResult.getMessage());
+        }
+        ReferenceEntry existing = referenceEntryRepository.findById(referenceId).orElse(null);
+        if (existing == null || !paperId.equals(existing.getPaperId())) {
+            return Result.error(404, "参考文献不存在");
+        }
+
+        ReferenceEntry parsed = parseBody(body, existing);
+        if (parsed == null) {
+            return Result.error(400, "作者、标题、发表刊物和出版年份不能为空");
+        }
+        parsed.setFormattedText(formatReference(parsed));
+        return Result.success("更新成功", referenceEntryRepository.save(parsed));
+    }
+
+    @DeleteMapping("/{referenceId}")
+    public Result<Void> delete(@PathVariable Long paperId, @PathVariable Long referenceId) {
+        Result<Void> accessResult = checkAccess(paperId);
+        if (accessResult != null) {
+            return accessResult;
+        }
+        ReferenceEntry existing = referenceEntryRepository.findById(referenceId).orElse(null);
+        if (existing == null || !paperId.equals(existing.getPaperId())) {
+            return Result.error(404, "参考文献不存在");
+        }
+        referenceEntryRepository.delete(existing);
+        reorderCitationNo(paperId);
+        return Result.success("删除成功", null);
+    }
+
+    @GetMapping("/{referenceId}/marker")
+    public Result<Map<String, Object>> marker(@PathVariable Long paperId, @PathVariable Long referenceId) {
+        Result<Void> accessResult = checkAccess(paperId);
+        if (accessResult != null) {
+            return Result.error(accessResult.getCode(), accessResult.getMessage());
+        }
+        ReferenceEntry existing = referenceEntryRepository.findById(referenceId).orElse(null);
+        if (existing == null || !paperId.equals(existing.getPaperId())) {
+            return Result.error(404, "参考文献不存在");
+        }
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", existing.getId());
+        data.put("citationNo", existing.getCitationNo());
+        data.put("marker", "[" + existing.getCitationNo() + "]");
+        data.put("formattedText", existing.getFormattedText());
+        return Result.success("查询成功", data);
+    }
+
+    private Result<Void> checkAccess(Long paperId) {
+        Paper paper = paperService.findById(paperId);
+        if (paper == null) {
+            return Result.error(404, "论文不存在");
+        }
+        Long userId = currentUserId();
+        if (userId == null) {
+            return Result.error(401, "未登录或 Token 已过期");
+        }
+        if (!userId.equals(paper.getStudentId())) {
+            return Result.error(403, "无权访问他人论文");
+        }
+        return null;
+    }
+
+    private Long currentUserId() {
+        Claims claims = (Claims) request.getAttribute("claims");
+        if (claims == null) {
+            return null;
+        }
+        return claims.get("userId", Long.class);
+    }
+
+    private ReferenceEntry parseBody(Map<String, Object> body, ReferenceEntry target) {
+        String authors = str(body.get("authors"));
+        String title = str(body.get("title"));
+        String journal = str(body.get("journal"));
+        String year = str(body.get("year"));
+
+        if (authors.isBlank() || title.isBlank() || journal.isBlank() || year.isBlank()) {
+            return null;
+        }
+
+        target.setAuthors(authors);
+        target.setTitle(title);
+        target.setJournal(journal);
+        target.setYear(year);
+        target.setPages(str(body.get("pages")));
+        return target;
+    }
+
+    private void reorderCitationNo(Long paperId) {
+        List<ReferenceEntry> all = referenceEntryRepository.findByPaperIdOrderByCitationNoAscCreatedAtAsc(paperId);
+        int no = 1;
+        for (ReferenceEntry entry : all) {
+            entry.setCitationNo(no++);
+            entry.setFormattedText(formatReference(entry));
+        }
+        referenceEntryRepository.saveAll(all);
+    }
+
+    private String str(Object value) {
+        return value == null ? "" : value.toString().trim();
+    }
+
+    private String formatReference(ReferenceEntry entry) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[").append(entry.getCitationNo()).append("] ")
+                .append(entry.getAuthors())
+                .append(". ")
+                .append(entry.getTitle())
+                .append("[J]. ")
+                .append(entry.getJournal())
+                .append(", ")
+                .append(entry.getYear());
+        if (!str(entry.getPages()).isBlank()) {
+            sb.append(": ").append(entry.getPages());
+        }
+        sb.append(".");
+        return sb.toString();
+    }
+}
