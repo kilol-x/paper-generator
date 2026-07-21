@@ -37,6 +37,14 @@ public class JwtInterceptor implements HandlerInterceptor {
                     sendForbidden(response, "权限不足：仅管理员可访问");
                     return false;
                 }
+                if (path.startsWith("/api/teacher/") && !"TEACHER".equals(role)) {
+                    sendForbidden(response, "权限不足：仅教师可访问教师工作台");
+                    return false;
+                }
+                if (path.startsWith("/api/student/") && !"STUDENT".equals(role)) {
+                    sendForbidden(response, "权限不足：仅学生可访问学生账户接口");
+                    return false;
+                }
                 if (path.startsWith("/api/reviews/") && "POST".equalsIgnoreCase(request.getMethod())) {
                     boolean submitAction = path.endsWith("/submit");
                     if (submitAction && !"STUDENT".equals(role)) {
@@ -47,6 +55,10 @@ public class JwtInterceptor implements HandlerInterceptor {
                         sendForbidden(response, "权限不足：仅教师可执行批阅操作");
                         return false;
                     }
+                }
+                if (path.startsWith("/api/reviews/") && !("TEACHER".equals(role) || "STUDENT".equals(role))) {
+                    sendForbidden(response, "权限不足：仅教师或论文所属学生可访问批阅记录");
+                    return false;
                 }
                 request.setAttribute("claims", claims);
                 return true;

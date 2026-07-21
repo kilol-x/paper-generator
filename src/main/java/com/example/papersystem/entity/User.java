@@ -32,6 +32,9 @@ public class User {
     @Column(name = "dept_id")
     private Integer deptId;
 
+    @Column(name = "teacher_id")
+    private Long teacherId;
+
     @Column(length = 100)
     private String email;
 
