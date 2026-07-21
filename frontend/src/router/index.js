@@ -22,6 +22,13 @@ const routes = [
     component: () => import('../views/student/PaperPreview.vue'),
     meta: { requiresAuth: true }
   },
+  // ========== 全新预览页 ==========
+  {
+    path: '/full-preview/:id',
+    name: 'PaperFullPreview',
+    component: () => import('../views/student/PaperPreviewNew.vue'),
+    meta: { requiresAuth: true }
+  },
 
   // ========== 404 兜底路由（放在最后） ==========
   {

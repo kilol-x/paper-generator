@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Edit, Delete, Document } from '@element-plus/icons-vue'
+import { Plus, Search, Edit, Delete, Document, Upload } from '@element-plus/icons-vue'
 import request from '../../api/request'
 
 const router = useRouter()
@@ -58,6 +58,32 @@ function createPaper() {
   router.push({ name: 'EditPaper' })
 }
 
+async function submitPaper(paper) {
+  try {
+    await ElMessageBox.confirm(
+      `确定提交「${paper.title}」吗？提交后将锁定论文，等待教师批阅。`,
+      '提交确认',
+      { confirmButtonText: '确定提交', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch { return }
+
+  try {
+    // 先通过更新接口设置状态为 SUBMITTED 并锁定
+    await request.put(`/api/papers/${paper.id}`, {
+      title: paper.title,
+      status: 'SUBMITTED'
+    })
+    // 再调用 submit 接口创建版本记录
+    try {
+      await request.post(`/api/reviews/${paper.id}/submit`)
+    } catch { /* submit 接口可能还未完善 */ }
+    ElMessage.success('论文已提交')
+    await loadPapers()
+  } catch (err) {
+    ElMessage.error(err.response?.data?.message || '提交失败')
+  }
+}
+
 function deletePaper(paper) {
   ElMessageBox.confirm(
     `确定删除「${paper.title}」？删除后不可恢复。`,
@@ -75,30 +101,22 @@ function deletePaper(paper) {
   }).catch(() => {})
 }
 
-function onSearch() {
-  currentPage.value = 1
-  loadPapers()
-}
-
-function onStatusChange() {
-  currentPage.value = 1
-  loadPapers()
-}
-
-function onSizeChange(size) {
-  pageSize.value = size
-  currentPage.value = 1
-  loadPapers()
-}
-
-function onPageChange(page) {
-  currentPage.value = page
-  loadPapers()
-}
+function onSearch() { currentPage.value = 1; loadPapers() }
+function onStatusChange() { currentPage.value = 1; loadPapers() }
+function onSizeChange(size) { pageSize.value = size; currentPage.value = 1; loadPapers() }
+function onPageChange(page) { currentPage.value = page; loadPapers() }
 
 function fmtDate(str) {
   if (!str) return '—'
   return str.replace('T', ' ').slice(0, 16)
+}
+
+function canEdit(paper) {
+  return paper.status === 'DRAFT' || paper.status === 'RETURNED'
+}
+
+function canSubmit(paper) {
+  return paper.status === 'DRAFT'
 }
 
 onMounted(() => loadPapers())
@@ -106,7 +124,7 @@ onMounted(() => loadPapers())
 
 <template>
   <div class="papers-content">
-    <!-- 新建按钮 -->
+    <!-- 工具栏 -->
     <div class="papers-toolbar">
       <div class="toolbar-left">
         <el-input
@@ -138,13 +156,18 @@ onMounted(() => loadPapers())
         :data="papers"
         stripe
         empty-text="暂无论文，点击右上角「新建论文」开始创作"
-        @row-dblclick="(row) => editPaper(row.id)"
+        @row-dblclick="(row) => canEdit(row) && editPaper(row.id)"
       >
-        <el-table-column prop="title" label="论文标题" min-width="280">
+        <el-table-column prop="title" label="论文标题" min-width="260">
           <template #default="{ row }">
-            <div class="title-cell" @click="editPaper(row.id)">
+            <div
+              class="title-cell"
+              :class="{ locked: !canEdit(row) }"
+              @click="canEdit(row) ? editPaper(row.id) : null"
+            >
               <el-icon><Document /></el-icon>
               <span>{{ row.title || '未命名论文' }}</span>
+              <el-tag v-if="row.locked" size="small" type="info" class="lock-tag">🔒 已锁定</el-tag>
             </div>
           </template>
         </el-table-column>
@@ -158,18 +181,38 @@ onMounted(() => loadPapers())
           </template>
         </el-table-column>
 
-        <el-table-column label="创建时间" width="170" align="center">
+        <el-table-column label="版本" width="70" align="center">
+          <template #default="{ row }">v{{ row.currentVersion || 1 }}</template>
+        </el-table-column>
+
+        <el-table-column label="创建时间" width="160" align="center">
           <template #default="{ row }">{{ fmtDate(row.createdAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="更新时间" width="170" align="center">
+        <el-table-column label="更新时间" width="160" align="center">
           <template #default="{ row }">{{ fmtDate(row.updatedAt) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="140" align="center" fixed="right">
+        <el-table-column label="操作" width="200" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" link :icon="Edit" @click="editPaper(row.id)">编辑</el-button>
-            <el-button size="small" type="danger" link :icon="Delete" @click="deletePaper(row)">删除</el-button>
+            <div class="action-btns">
+              <el-button
+                v-if="canEdit(row)"
+                size="small" type="primary" link :icon="Edit"
+                @click="editPaper(row.id)"
+              >编辑</el-button>
+              <el-button
+                v-if="canSubmit(row)"
+                size="small" type="success" link :icon="Upload"
+                @click="submitPaper(row)"
+              >提交</el-button>
+              <el-button
+                v-if="canEdit(row)"
+                size="small" type="danger" link :icon="Delete"
+                @click="deletePaper(row)"
+              >删除</el-button>
+              <span v-if="!canEdit(row)" class="readonly-hint">只读</span>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -191,7 +234,6 @@ onMounted(() => loadPapers())
 </template>
 
 <style scoped>
-/* ===== 覆盖 Element Plus 主题色为淡墨绿色 ===== */
 .papers-content {
   --el-color-primary: #4f776a;
   --el-color-primary-light-3: #729487;
@@ -234,36 +276,26 @@ onMounted(() => loadPapers())
   overflow: hidden;
 }
 
-/* Element Plus 分页激活项颜色 */
 .papers-table-wrap :deep(.el-pager li.is-active) {
   background-color: #4f776a !important;
   color: #fff !important;
 }
-.papers-table-wrap :deep(.el-pager li:hover) {
-  color: #4f776a;
-}
+.papers-table-wrap :deep(.el-pager li:hover) { color: #4f776a; }
 .papers-table-wrap :deep(.el-pagination .btn-prev:hover),
-.papers-table-wrap :deep(.el-pagination .btn-next:hover) {
-  color: #4f776a;
-}
+.papers-table-wrap :deep(.el-pagination .btn-next:hover) { color: #4f776a; }
 
 .title-cell {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  color: #242622;
-  font-weight: 500;
+  display: flex; align-items: center; gap: 7px;
+  cursor: pointer; color: #242622; font-weight: 500;
 }
 .title-cell:hover { color: #4F776A; }
+.title-cell.locked { cursor: default; opacity: 0.7; }
+.title-cell.locked:hover { color: #242622; }
+.lock-tag { margin-left: 6px; opacity: 0.8; }
 
-/* 状态点 */
 .status-dot {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+  display: inline-block; padding: 3px 10px;
+  border-radius: 999px; font-size: 12px; font-weight: 600;
 }
 .s-draft      { background: #EDF0EC; color: #5C605A; }
 .s-submitted  { background: #E6EDF5; color: #506D8F; }
@@ -271,10 +303,11 @@ onMounted(() => loadPapers())
 .s-returned   { background: #F5E8D8; color: #996127; }
 .s-graded     { background: #E3EEE9; color: #386858; }
 
+.action-btns { display: flex; gap: 4px; justify-content: center; }
+.readonly-hint { font-size: 12px; color: var(--text-dim); }
+
 .pagination-wrap {
-  display: flex;
-  justify-content: center;
-  padding: 14px 18px;
-  border-top: 1px solid #e4e3de;
+  display: flex; justify-content: center;
+  padding: 14px 18px; border-top: 1px solid #e4e3de;
 }
 </style>

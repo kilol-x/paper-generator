@@ -1,7 +1,7 @@
 <script setup>
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import { Image } from '@tiptap/extension-image'
+import { ResizableImage } from '../extensions/ResizableImage.js'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
@@ -26,7 +26,7 @@ const editor = useEditor({
       heading: { levels: [1, 2, 3, 4] }
     }),
     Underline,
-    Image.configure({
+    ResizableImage.configure({
       inline: true,
       allowBase64: true
     }),
@@ -431,6 +431,56 @@ watch(() => editor.value, val => {
 }
 .editor-body :deep(img:hover) {
   box-shadow: var(--shadow-lg);
+}
+
+/* ---- 可缩放图片包装器 ---- */
+.editor-body :deep(.resizable-image-wrapper) {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  vertical-align: bottom;
+}
+.editor-body :deep(.resizable-image-wrapper.is-selected) {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: var(--r);
+}
+
+/* -- 拖拽手柄 -- */
+.editor-body :deep(.resize-handle) {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: nwse-resize;
+  box-shadow: 0 1px 4px rgba(0,0,0,.18);
+  z-index: 10;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.editor-body :deep(.resize-handle:hover) {
+  transform: scale(1.25);
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.editor-body :deep(.resize-handle:active) {
+  transform: scale(1.15);
+}
+
+/* -- 拖拽中的状态 -- */
+.editor-body :deep(.resizable-image-wrapper.is-resizing) {
+  outline: 2px dashed var(--primary);
+  outline-offset: 3px;
+  border-radius: var(--r);
+}
+.editor-body :deep(.resizable-image-wrapper.is-resizing img) {
+  opacity: 0.85;
+  cursor: nwse-resize;
 }
 
 /* ---- 表格 ---- */
