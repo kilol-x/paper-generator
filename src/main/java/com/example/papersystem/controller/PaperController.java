@@ -2,6 +2,8 @@ package com.example.papersystem.controller;
 
 import com.example.papersystem.common.Result;
 import com.example.papersystem.entity.Paper;
+import com.example.papersystem.entity.PaperVersion;
+import com.example.papersystem.repository.PaperVersionRepository;
 import com.example.papersystem.service.PaperService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/papers")
@@ -25,6 +28,9 @@ public class PaperController {
 
     @Autowired
     private HttpServletRequest request;
+
+    @Autowired
+    private PaperVersionRepository paperVersionRepository;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -125,6 +131,50 @@ public class PaperController {
         return Result.success("查询成功", buildPaperResponse(paper));
     }
 
+    /** 获取草稿历史（自动保存/手动保存） */
+    @GetMapping("/{id}/drafts")
+    public Result<List<PaperVersion>> drafts(@PathVariable Long id) {
+        Paper paper = paperService.findById(id);
+        if (paper == null) {
+            return Result.error(404, "论文不存在");
+        }
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return Result.error(401, "未登录或 Token 已过期");
+        }
+        if (!userId.equals(paper.getStudentId())) {
+            return Result.error(403, "无权访问他人论文");
+        }
+
+        List<PaperVersion> list = paperVersionRepository.findByPaperIdOrderByVersionNoDescCreatedAtDesc(id)
+                .stream()
+                .filter(v -> "AUTO_SAVE".equals(v.getAction()) || "MANUAL_SAVE".equals(v.getAction()) || "CREATE".equals(v.getAction()))
+                .toList();
+        return Result.success("查询成功", list);
+    }
+
+    /** 兼容旧前端：手动创建版本记录 */
+    @PostMapping("/{id}/versions")
+    public Result<PaperVersion> createVersion(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Paper paper = paperService.findById(id);
+        if (paper == null) {
+            return Result.error(404, "论文不存在");
+        }
+        Long userId = getCurrentUserId();
+        if (userId == null) {
+            return Result.error(401, "未登录或 Token 已过期");
+        }
+        if (!userId.equals(paper.getStudentId())) {
+            return Result.error(403, "无权为他人论文创建版本");
+        }
+
+        String action = normalizeSaveMode(body.get("action"));
+        String description = body.get("description") == null ? "保存草稿" : body.get("description").toString();
+        String snapshot = body.get("contentSnapshot") == null ? paper.getContent() : body.get("contentSnapshot").toString();
+        PaperVersion version = recordDraftVersion(paper, action, description, userId, snapshot);
+        return Result.success("记录成功", version);
+    }
+
     /** 保存新论文 */
     @PostMapping
     public Result<Map<String, Object>> save(@RequestBody Map<String, Object> body) {
@@ -160,6 +210,8 @@ public class PaperController {
         if (snapshot != null) paper.setTemplateSnapshot(snapshot.toString());
 
         Paper saved = paperService.save(paper);
+        String saveMode = normalizeSaveMode(body.get("saveMode"));
+        recordDraftVersion(saved, saveMode, "CREATE".equals(saveMode) ? "创建论文草稿" : "保存论文草稿", userId, saved.getContent());
         return Result.success("保存成功", buildPaperResponse(saved));
     }
 
@@ -207,6 +259,9 @@ public class PaperController {
         if (snapshot != null) updated.setTemplateSnapshot(snapshot.toString());
 
         Paper saved = paperService.update(id, updated);
+        String saveMode = normalizeSaveMode(body.get("saveMode"));
+        String description = "AUTO_SAVE".equals(saveMode) ? "自动保存草稿" : "手动保存草稿";
+        recordDraftVersion(saved, saveMode, description, userId, saved.getContent());
         return Result.success("更新成功", buildPaperResponse(saved));
     }
 
@@ -229,5 +284,40 @@ public class PaperController {
 
         paperService.delete(id);
         return Result.success("删除成功", null);
+    }
+
+    private String normalizeSaveMode(Object source) {
+        if (source == null) {
+            return "MANUAL_SAVE";
+        }
+        String text = source.toString().trim().toUpperCase();
+        if ("AUTO_SAVE".equals(text) || "MANUAL_SAVE".equals(text) || "CREATE".equals(text)) {
+            return text;
+        }
+        if ("SAVE".equals(text)) {
+            return "MANUAL_SAVE";
+        }
+        return "MANUAL_SAVE";
+    }
+
+    private PaperVersion recordDraftVersion(Paper paper, String action, String description, Long operatorId, String snapshot) {
+        if (paper == null) {
+            return null;
+        }
+        int nextVersion = Optional.ofNullable(paper.getCurrentVersion()).orElse(0) + 1;
+        paper.setCurrentVersion(nextVersion);
+        if (paper.getStatus() == null || paper.getStatus().isBlank()) {
+            paper.setStatus("DRAFT");
+        }
+        Paper latest = paperService.save(paper);
+
+        PaperVersion version = new PaperVersion();
+        version.setPaperId(latest.getId());
+        version.setVersionNo(nextVersion);
+        version.setAction(action);
+        version.setDescription(description);
+        version.setOperatorId(operatorId);
+        version.setContentSnapshot(snapshot);
+        return paperVersionRepository.save(version);
     }
 }
