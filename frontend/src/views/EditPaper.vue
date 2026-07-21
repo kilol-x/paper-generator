@@ -9,6 +9,7 @@ import CoverInfoPanel from '../components/CoverInfoPanel.vue'
 import AbstractPanel from '../components/AbstractPanel.vue'
 import ReferencePanel from '../components/ReferencePanel.vue'
 import VersionPanel from '../components/VersionPanel.vue'
+import TemplatePickerDialog from '../components/TemplatePickerDialog.vue'
 import request from '../api/request'
 
 const route = useRoute()
@@ -38,6 +39,12 @@ const loading = ref(false)
 const dirty = ref(false)
 const sidebarCollapsed = ref(false)
 const sidebarTab = ref('outline') // 'outline' | 'versions'
+
+// 模板状态
+const currentTemplateId = ref(null)
+const currentTemplateName = ref('')
+const currentTemplateSnapshot = ref(null) // 解析后的对象
+const showChangeTplPicker = ref(false)
 
 let idCounter = 0
 let autoSaveTimer = null
@@ -275,7 +282,11 @@ async function savePaper() {
         id: s.id, title: s.title, content: s.content,
         type: s.type, level: s.level, parentId: s.parentId,
         sortOrder: s.sortOrder
-      }))
+      })),
+      templateId: currentTemplateId.value || undefined,
+      templateSnapshot: currentTemplateSnapshot.value
+        ? JSON.stringify(currentTemplateSnapshot.value)
+        : undefined,
     }
 
     let res
@@ -346,6 +357,26 @@ async function loadPaper() {
     paperTitle.value = data.title || '未命名论文'
     sections.value = data.sections || []
     ensureSpecialSections()
+
+    // 读取模板信息
+    if (data.templateId) currentTemplateId.value = data.templateId
+    if (data.templateSnapshot) {
+      try {
+        const snap = typeof data.templateSnapshot === 'string'
+          ? JSON.parse(data.templateSnapshot)
+          : data.templateSnapshot
+        currentTemplateSnapshot.value = snap
+        currentTemplateName.value = snap.templateName || ''
+        // 首次进入（章节为空）时按模板骨架生成
+        const hasChapters = sections.value.some(s => !s.type || s.type === 'chapter')
+        if (!hasChapters && snap.structureJson) {
+          applyTemplateSkeleton(snap, { keepCover: true })
+        }
+      } catch (e) {
+        console.warn('templateSnapshot 解析失败', e)
+      }
+    }
+
     // 默认选中第一个章节或封面
     const firstChapter = chaptersOnly.value[0]
     activeSectionId.value = firstChapter?.id || 'meta-cover'
@@ -354,6 +385,92 @@ async function loadPaper() {
   } finally {
     loading.value = false
   }
+}
+
+// ==================== 模板套用 / 更换 ====================
+/**
+ * 根据模板 snapshot 里的 structureJson 生成章节骨架
+ * @param {Object} snapshot   { templateId, templateName, structureJson, ... }
+ * @param {Object} opts       { keepCover: boolean }
+ */
+function applyTemplateSkeleton(snapshot, opts = {}) {
+  let structure = null
+  try {
+    structure = typeof snapshot.structureJson === 'string'
+      ? JSON.parse(snapshot.structureJson)
+      : snapshot.structureJson
+  } catch { structure = null }
+
+  // 备份要保留的封面信息
+  const savedCover = opts.keepCover
+    ? sections.value.find(s => s.id === 'meta-cover')
+    : null
+
+  // 清空 sections（章节 + 摘要 + 参考文献 + 致谢）
+  sections.value = []
+
+  // 加回封面（如果保留）
+  if (savedCover) sections.value.push({ ...savedCover })
+
+  // 保证有特殊章节骨架
+  ensureSpecialSections()
+
+  // 根据 structureJson.sections 生成正文章节
+  const src = structure?.sections || []
+  const chapterList = src.filter(s => s.key === 'chapters' || (s.visible && !['cover','declaration','abstract_zh','abstract_en','keywords_zh','keywords_en','toc','references','acknowledgement','appendix'].includes(s.key)))
+
+  // 简单方式：从 structureJson 里 visible=true 的普通节生成一级章节
+  let order = 0
+  for (const sec of src) {
+    if (!sec.visible) continue
+    if (sec.key === 'chapters') {
+      // 生成一个默认的正文第一章
+      sections.value.push({
+        id: `sec_${Date.now()}_${idCounter++}`,
+        title: '第一章',
+        content: '', type: 'chapter', level: 1, parentId: null, sortOrder: order++
+      })
+    }
+  }
+
+  dirty.value = true
+}
+
+async function openChangeTemplate() {
+  try {
+    await ElMessageBox.confirm(
+      '更换论文模板会清空当前所有章节正文与摘要内容（封面信息将保留），此操作不可撤销。\n\n确定要继续吗？',
+      '更换模板确认',
+      {
+        confirmButtonText: '继续更换',
+        cancelButtonText: '取消',
+        type: 'warning',
+        distinguishCancelAndClose: true,
+      }
+    )
+    showChangeTplPicker.value = true
+  } catch { /* user cancelled */ }
+}
+
+function onTemplateChanged(templateData) {
+  const tpl = templateData.template
+  const cfg = templateData.config || {}
+  currentTemplateId.value = tpl.id
+  currentTemplateName.value = tpl.name
+  const snapshot = {
+    templateId: tpl.id,
+    templateName: tpl.name,
+    templateType: tpl.type,
+    structureJson: cfg.structureJson || '',
+    formatJson: cfg.formatJson || '',
+    coverFields: cfg.coverFields || '',
+  }
+  currentTemplateSnapshot.value = snapshot
+  applyTemplateSkeleton(snapshot, { keepCover: true })
+  // 重置选中章节
+  const firstChapter = chaptersOnly.value[0]
+  activeSectionId.value = firstChapter?.id || 'meta-cover'
+  ElMessage.success(`已套用模板「${tpl.name}」`)
 }
 
 onMounted(() => {
@@ -425,6 +542,13 @@ function onRestoreVersion(snapshot) {
         />
       </div>
       <div class="top-bar-right">
+        <template v-if="currentTemplateName">
+          <span class="tpl-badge">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            {{ currentTemplateName }}
+          </span>
+          <el-button size="small" @click="openChangeTemplate">更换模板</el-button>
+        </template>
         <span class="save-status" :class="{ dirty }">
           {{ saving ? '⏳ 正在保存…' : (dirty ? '● 未保存' : '● 已保存') }}
         </span>
@@ -567,6 +691,12 @@ function onRestoreVersion(snapshot) {
         </div>
       </main>
     </div>
+
+    <!-- 更换模板选择器 -->
+    <TemplatePickerDialog
+      v-model="showChangeTplPicker"
+      @confirm="onTemplateChanged"
+    />
   </div>
 </template>
 
@@ -657,6 +787,13 @@ function onRestoreVersion(snapshot) {
   color: var(--success); background: #E3EEE9;
 }
 .save-status.dirty { color: #d97706; background: #F5E8D8; }
+
+.tpl-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; color: #386858;
+  background: #E3EEE9; padding: 4px 12px; border-radius: 999px;
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 .top-bar-right :deep(.el-button--primary) {
   background: var(--primary); border-color: var(--primary);

@@ -2,8 +2,6 @@ package com.example.papersystem.controller;
 
 import com.example.papersystem.common.Result;
 import com.example.papersystem.entity.Paper;
-import com.example.papersystem.entity.PaperVersion;
-import com.example.papersystem.repository.PaperVersionRepository;
 import com.example.papersystem.service.PaperService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -14,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,9 +22,6 @@ public class PaperController {
 
     @Autowired
     private PaperService paperService;
-
-    @Autowired
-    private PaperVersionRepository versionRepository;
 
     @Autowired
     private HttpServletRequest request;
@@ -56,6 +50,8 @@ public class PaperController {
         map.put("score", paper.getScore());
         map.put("grade", paper.getGrade());
         map.put("teacherSummary", paper.getTeacherSummary());
+        map.put("templateId", paper.getTemplateId());
+        map.put("templateSnapshot", paper.getTemplateSnapshot());
         map.put("createdAt", paper.getCreatedAt());
         map.put("updatedAt", paper.getUpdatedAt());
 
@@ -157,6 +153,12 @@ public class PaperController {
             }
         }
 
+        // 模板关联
+        Object templateId = body.get("templateId");
+        if (templateId != null) paper.setTemplateId(((Number) templateId).longValue());
+        Object snapshot = body.get("templateSnapshot");
+        if (snapshot != null) paper.setTemplateSnapshot(snapshot.toString());
+
         Paper saved = paperService.save(paper);
         return Result.success("保存成功", buildPaperResponse(saved));
     }
@@ -198,6 +200,12 @@ public class PaperController {
             }
         }
 
+        // 模板关联更新（切换模板时前端会带新的 templateId + snapshot）
+        Object templateId = body.get("templateId");
+        if (templateId != null) updated.setTemplateId(((Number) templateId).longValue());
+        Object snapshot = body.get("templateSnapshot");
+        if (snapshot != null) updated.setTemplateSnapshot(snapshot.toString());
+
         Paper saved = paperService.update(id, updated);
         return Result.success("更新成功", buildPaperResponse(saved));
     }
@@ -221,64 +229,5 @@ public class PaperController {
 
         paperService.delete(id);
         return Result.success("删除成功", null);
-    }
-
-    // ==================== 版本管理 ====================
-
-    /** 保存版本快照 */
-    @PostMapping("/{id}/versions")
-    public Result<Map<String, Object>> saveVersion(@PathVariable Long id,
-                                                    @RequestBody Map<String, Object> body) {
-        Paper paper = paperService.findById(id);
-        if (paper == null) {
-            return Result.error(404, "论文不存在");
-        }
-
-        Long userId = getCurrentUserId();
-        if (userId == null) {
-            return Result.error(401, "未登录或 Token 已过期");
-        }
-
-        PaperVersion version = new PaperVersion();
-        version.setPaperId(id);
-        version.setVersionNo(body.get("versionNo") != null
-                ? Integer.valueOf(body.get("versionNo").toString()) : 1);
-        version.setAction(body.get("action") != null
-                ? body.get("action").toString() : "SAVE");
-        version.setDescription(body.get("description") != null
-                ? body.get("description").toString() : null);
-        version.setOperatorId(userId);
-
-        Object snapshot = body.get("contentSnapshot");
-        if (snapshot != null) {
-            try {
-                version.setContentSnapshot(snapshot instanceof String
-                        ? (String) snapshot
-                        : objectMapper.writeValueAsString(snapshot));
-            } catch (JsonProcessingException e) {
-                version.setContentSnapshot(snapshot.toString());
-            }
-        }
-
-        version.setCreatedAt(LocalDateTime.now());
-        PaperVersion saved = versionRepository.save(version);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("id", saved.getId());
-        result.put("versionNo", saved.getVersionNo());
-        result.put("action", saved.getAction());
-
-        return Result.success("版本保存成功", result);
-    }
-
-    /** 获取论文版本列表 */
-    @GetMapping("/{id}/versions")
-    public Result<List<PaperVersion>> getVersions(@PathVariable Long id) {
-        Paper paper = paperService.findById(id);
-        if (paper == null) {
-            return Result.error(404, "论文不存在");
-        }
-        List<PaperVersion> versions = versionRepository.findByPaperIdOrderByVersionNoDescCreatedAtDesc(id);
-        return Result.success("查询成功", versions);
     }
 }
