@@ -58,8 +58,7 @@ public class Paper {
     @Column(name = "teacher_summary", length = 2000)
     private String teacherSummary;
 
-    @Column(name = "template_id")
-    private Long templateId;
+
 
     /** 创建论文时对所选模板的快照（JSON），包含 structureJson/formatJson/coverFields */
     @Lob

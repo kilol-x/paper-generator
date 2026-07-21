@@ -10,6 +10,7 @@ import AbstractPanel from '../components/AbstractPanel.vue'
 import ReferencePanel from '../components/ReferencePanel.vue'
 import VersionPanel from '../components/VersionPanel.vue'
 import TemplatePickerDialog from '../components/TemplatePickerDialog.vue'
+import { toCssFont } from '../utils/fonts'
 import request from '../api/request'
 
 const route = useRoute()
@@ -62,6 +63,22 @@ const editorFormatConfig = computed(() => {
       ? JSON.parse(snap.formatJson)
       : snap.formatJson
   } catch { return undefined }
+})
+
+/** 根据当前章节层级和模板配置，计算面包屑标题的内联样式 */
+const headingBreadcrumbStyle = computed(() => {
+  const cfg = editorFormatConfig.value
+  const level = activeSection.value?.level
+  if (!cfg || !level || level < 1 || level > 3) return {}
+  const key = 'heading' + level
+  const headingCfg = cfg[key]
+  if (!headingCfg) return {}
+  const style = {}
+  if (headingCfg.fontSize) style.fontSize = headingCfg.fontSize + 'pt'
+  const cssFont = toCssFont(headingCfg.font)
+  if (cssFont) style.fontFamily = cssFont
+  if (headingCfg.bold !== false) style.fontWeight = 'bold'
+  return style
 })
 
 const activeSection = computed(() =>
@@ -727,8 +744,11 @@ function onReferenceCite(payload) {
 
       <!-- ====== 右侧主编辑区 ====== -->
       <main class="editor-area">
-        <!-- 面包屑 -->
-        <div class="editor-breadcrumb" v-if="activeSection">
+        <!-- 面包屑（自动应用模板预设的标题字号） -->
+        <div class="editor-breadcrumb" v-if="activeSection" :style="headingBreadcrumbStyle">
+          <span class="breadcrumb-level-tag" v-if="activeSection.level >= 1 && activeSection.level <= 3">
+            H{{ activeSection.level }}
+          </span>
           {{ activeSection.title }}
         </div>
 
@@ -759,6 +779,7 @@ function onReferenceCite(payload) {
             :model-value="sections.find(s => s.id === 'meta-acknowledgment')?.content || ''"
             placeholder="撰写致谢…"
             :format-config="editorFormatConfig"
+            :heading-level="0"
             @update:model-value="onAcknowledgmentChange"
           />
         </div>
@@ -770,6 +791,7 @@ function onReferenceCite(payload) {
             :model-value="activeSection.content"
             :placeholder="`撰写「${activeSection.title}」内容…`"
             :format-config="editorFormatConfig"
+            :heading-level="activeSection.level || 0"
             @update:model-value="onContentChange"
           />
           <!-- 引用提示 -->
@@ -1027,6 +1049,19 @@ function onReferenceCite(payload) {
 .editor-breadcrumb::before {
   content: ''; display: inline-block; width: 6px; height: 6px;
   background: var(--primary); border-radius: 50%; opacity: 0.5;
+}
+.breadcrumb-level-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 .editor-area :deep(.paper-editor) {

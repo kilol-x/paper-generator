@@ -47,8 +47,15 @@ export function extractEditorFonts(formatCfg) {
   const heading1Font  = toCssFont(formatCfg.heading1?.font)
   const heading2Font  = toCssFont(formatCfg.heading2?.font)
   const heading3Font  = toCssFont(formatCfg.heading3?.font)
-  const bodyFontSize  = formatCfg.body?.fontSize   || undefined
+  const bodyFontSize    = formatCfg.body?.fontSize    || undefined
+  const heading1FontSize = formatCfg.heading1?.fontSize || undefined
+  const heading2FontSize = formatCfg.heading2?.fontSize || undefined
+  const heading3FontSize = formatCfg.heading3?.fontSize || undefined
   const bodyLineHeight = formatCfg.body?.lineSpacing || undefined
 
-  return { bodyFont, heading1Font, heading2Font, heading3Font, bodyFontSize, bodyLineHeight }
+  return {
+    bodyFont, heading1Font, heading2Font, heading3Font,
+    bodyFontSize, heading1FontSize, heading2FontSize, heading3FontSize,
+    bodyLineHeight
+  }
 }

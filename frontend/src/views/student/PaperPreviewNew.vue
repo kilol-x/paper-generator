@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Download, FullScreen, View, Printer } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { extractEditorFonts } from '../../utils/fonts.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +20,20 @@ const abstractData = ref({ abstractCn: '', abstractEn: '', keywordsCn: [], keywo
 const references = ref([])
 const acknowledgment = ref('')
 const chapters = ref([])
+
+// ─── 模板格式配置（从 templateSnapshot 解析） ───
+const templateFormatConfig = ref(null)
+const headingFontStyles = computed(() => {
+  const fonts = extractEditorFonts(templateFormatConfig.value)
+  const style = {}
+  if (fonts.heading1FontSize) style['--pv-h1-size'] = fonts.heading1FontSize + 'pt'
+  if (fonts.heading2FontSize) style['--pv-h2-size'] = fonts.heading2FontSize + 'pt'
+  if (fonts.heading3FontSize) style['--pv-h3-size'] = fonts.heading3FontSize + 'pt'
+  if (fonts.heading1Font)     style['--pv-h1-font'] = fonts.heading1Font
+  if (fonts.heading2Font)     style['--pv-h2-font'] = fonts.heading2Font
+  if (fonts.heading3Font)     style['--pv-h3-font'] = fonts.heading3Font
+  return style
+})
 
 // ─── 分页状态 ───
 const currentPage = ref(1)
@@ -42,6 +57,18 @@ async function loadPaper() {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
     paper.value = res.data?.data || res.data
+    // 解析模板快照中的格式配置，用于标题字号
+    try {
+      const snap = paper.value?.templateSnapshot
+      if (snap) {
+        const parsed = typeof snap === 'string' ? JSON.parse(snap) : snap
+        if (parsed?.formatJson) {
+          templateFormatConfig.value = typeof parsed.formatJson === 'string'
+            ? JSON.parse(parsed.formatJson)
+            : parsed.formatJson
+        }
+      }
+    } catch { /* ignore */ }
     const sections = paper.value?.sections || []
 
     for (const s of sections) {
@@ -229,12 +256,27 @@ async function exportDocx() {
     }
 
     // ── 正文章节 ──
+    // 从模板配置中获取各级标题字号（pt → half-pt，docx 以半磅为单位）
+    const h1Size = templateFormatConfig.value?.heading1?.fontSize
+      ? templateFormatConfig.value.heading1.fontSize * 2 : 28
+    const h2Size = templateFormatConfig.value?.heading2?.fontSize
+      ? templateFormatConfig.value.heading2.fontSize * 2 : 26
+    const h3Size = templateFormatConfig.value?.heading3?.fontSize
+      ? templateFormatConfig.value.heading3.fontSize * 2 : 24
+    const bodySize = templateFormatConfig.value?.body?.fontSize
+      ? templateFormatConfig.value.body.fontSize * 2 : 24
+    const h1Font = templateFormatConfig.value?.heading1?.font || 'SimHei'
+    const h2Font = templateFormatConfig.value?.heading2?.font || 'SimHei'
+    const h3Font = templateFormatConfig.value?.heading3?.font || 'SimHei'
+    const bodyFont = templateFormatConfig.value?.body?.font || 'SimSun'
+
     for (const ch of tocChapters.value) {
-      const headingSize = ch.depth === 1 ? 28 : ch.depth === 2 ? 26 : 24
+      const headingSize = ch.depth === 1 ? h1Size : ch.depth === 2 ? h2Size : h3Size
+      const headingFont = ch.depth === 1 ? h1Font : ch.depth === 2 ? h2Font : h3Font
       children.push(new Paragraph({
         alignment: ch.depth === 1 ? AlignmentType.CENTER : AlignmentType.LEFT,
         spacing: { before: 200, after: 150 },
-        children: [new TextRun({ text: ch.title, size: headingSize, font: 'SimHei', bold: true })]
+        children: [new TextRun({ text: ch.title, size: headingSize, font: headingFont, bold: true })]
       }))
       if (ch.content) {
         const cleanText = stripHtml(ch.content).trim()
@@ -243,7 +285,7 @@ async function exportDocx() {
           for (const p of paragraphs) {
             children.push(new Paragraph({
               spacing: { after: 60 }, indent: { firstLine: 480 },
-              children: [new TextRun({ text: p.trim(), size: 24, font: 'SimSun' })]
+              children: [new TextRun({ text: p.trim(), size: bodySize, font: bodyFont })]
             }))
           }
         }
@@ -290,7 +332,7 @@ async function exportDocx() {
       styles: {
         default: {
           document: {
-            run: { font: 'SimSun', size: 24 },
+            run: { font: bodyFont, size: bodySize },
             paragraph: { spacing: { after: 60 } }
           }
         }
@@ -431,7 +473,7 @@ function buildRefText(ref, index) {
     </div>
 
     <!-- ═══ 论文正文 ═══ -->
-    <div class="preview-body" v-if="!loading">
+    <div class="preview-body" v-if="!loading" :style="headingFontStyles">
       <!-- 连续模式 -->
       <div v-if="viewMode === 'continuous'" class="paper-a4" ref="paperBodyRef">
         <!-- 封面 -->
@@ -678,10 +720,19 @@ function buildRefText(ref, index) {
 .section-text :deep(th), .section-text :deep(td) { border: 1px solid #ccc; padding: 6px 10px; }
 .section-text :deep(th) { background: #f7f7f5; font-weight: 600; }
 
-.chapter-head { font-family: "Noto Serif SC", serif; color: #1a1a1a; margin: 0 0 18px; }
-h1.chapter-head, .level-1 { font-size: 20px; text-align: center; }
-h2.chapter-head, .level-2 { font-size: 18px; }
-h3.chapter-head, .level-3 { font-size: 16px; }
+.chapter-head { color: #1a1a1a; margin: 0 0 18px; }
+h1.chapter-head, .level-1 {
+  font-size: var(--pv-h1-size, 20px); text-align: center;
+  font-family: var(--pv-h1-font, "Noto Serif SC", serif); font-weight: 700;
+}
+h2.chapter-head, .level-2 {
+  font-size: var(--pv-h2-size, 18px);
+  font-family: var(--pv-h2-font, "Noto Serif SC", serif); font-weight: 700;
+}
+h3.chapter-head, .level-3 {
+  font-size: var(--pv-h3-size, 16px);
+  font-family: var(--pv-h3-font, "Noto Serif SC", serif); font-weight: 700;
+}
 h4.chapter-head, .level-4 { font-size: 15px; }
 
 .keywords { margin-top: 16px; font-size: 14px; color: #555; line-height: 1.6; }

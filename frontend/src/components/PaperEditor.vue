@@ -12,14 +12,16 @@ import { FontFamily } from '@tiptap/extension-font-family'
 import { Underline } from '@tiptap/extension-underline'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
-import { extractEditorFonts } from '../utils/fonts.js'
+import { extractEditorFonts, toCssFont } from '../utils/fonts.js'
 import TableEditor from './TableEditor.vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   placeholder: { type: String, default: '开始撰写论文…' },
   /** 模板 formatJson 解析后的对象，用于自动套用模板字体 */
-  formatConfig: { type: Object, default: undefined }
+  formatConfig: { type: Object, default: undefined },
+  /** 当前编辑章节的标题层级：0=正文/特殊章节, 1=一级标题, 2=二级标题, 3=三级标题 */
+  headingLevel: { type: Number, default: 0 }
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -158,14 +160,87 @@ watch(() => editor.value, val => {
   }
 }, { immediate: true })
 
-// ========== 模板字体自动套用 ==========
+// ========== 模板字体 / 字号按章节层级动态套用 ==========
+const FONT_SIZE_LABEL = { 1: '一级标题', 2: '二级标题', 3: '三级标题' }
+
+/**
+ * 根据当前章节层级，决定编辑器内容的字号和字体。
+ *
+ * 规则：
+ * - headingLevel=0（致谢 / 摘要 / 封面等特殊章节）→ 使用 body 配置
+ * - headingLevel=1 → 使用 heading1 的 fontSize / font
+ * - headingLevel=2 → 使用 heading2 的 fontSize / font
+ * - headingLevel=3 → 使用 heading3 的 fontSize / font
+ * - 无模板配置时回退到默认值（15px / 宋体）
+ */
+function resolveChapterFontSize(cfg, level) {
+  if (!cfg) return undefined
+  if (level >= 1 && level <= 3) {
+    const headingCfg = cfg['heading' + level]
+    if (headingCfg?.fontSize != null) return headingCfg.fontSize
+  }
+  // 兜底：body.fontSize
+  return cfg.body?.fontSize ?? undefined
+}
+
+function resolveChapterFontFamily(cfg, level) {
+  if (!cfg) return undefined
+  if (level >= 1 && level <= 3) {
+    const headingCfg = cfg['heading' + level]
+    if (headingCfg?.font) return toCssFont(headingCfg.font)
+  }
+  // 兜底：body.font
+  if (cfg.body?.font) return toCssFont(cfg.body.font)
+  return undefined
+}
+
 const editorFontStyles = computed(() => {
-  const fonts = extractEditorFonts(props.formatConfig)
+  const cfg = props.formatConfig
   const style = {}
-  if (fonts.bodyFont)      style['--editor-body-font']       = fonts.bodyFont
-  if (fonts.bodyFontSize)  style['--editor-body-font-size']  = fonts.bodyFontSize + 'pt'
-  if (fonts.bodyLineHeight) style['--editor-body-line-height'] = fonts.bodyLineHeight
+
+  // ── 正文／章节内容字号：按 headingLevel 动态选择 ──
+  const activeFontSize = resolveChapterFontSize(cfg, props.headingLevel)
+  if (activeFontSize != null) {
+    style['--editor-body-font-size'] = activeFontSize + 'pt'
+  }
+
+  // ── 字体 ──
+  const fonts = extractEditorFonts(cfg)
+  const activeFontFamily = resolveChapterFontFamily(cfg, props.headingLevel)
+  if (activeFontFamily) {
+    style['--editor-body-font'] = activeFontFamily
+  } else if (fonts.bodyFont) {
+    style['--editor-body-font'] = fonts.bodyFont
+  }
+
+  // ── 行高（始终从 body 配置读取） ──
+  if (fonts.bodyLineHeight) {
+    style['--editor-body-line-height'] = fonts.bodyLineHeight
+  }
+
+  // ── 各级标题字体（供预览 / 面包屑使用） ──
+  if (fonts.heading1Font)    style['--editor-h1-font']      = fonts.heading1Font
+  if (fonts.heading2Font)    style['--editor-h2-font']      = fonts.heading2Font
+  if (fonts.heading3Font)    style['--editor-h3-font']      = fonts.heading3Font
+  if (fonts.heading1FontSize) style['--editor-h1-font-size'] = fonts.heading1FontSize + 'pt'
+  if (fonts.heading2FontSize) style['--editor-h2-font-size'] = fonts.heading2FontSize + 'pt'
+  if (fonts.heading3FontSize) style['--editor-h3-font-size'] = fonts.heading3FontSize + 'pt'
+
   return style
+})
+
+/** 当前章节的正文有效字号文本（用于工具栏徽章） */
+const effectiveFontSizeText = computed(() => {
+  const size = resolveChapterFontSize(props.formatConfig, props.headingLevel)
+  return size != null ? size + 'pt' : ''
+})
+
+/** 当前激活章节的层级中文标签 */
+const activeLevelLabel = computed(() => {
+  if (props.headingLevel >= 1 && props.headingLevel <= 3) {
+    return FONT_SIZE_LABEL[props.headingLevel]
+  }
+  return ''
 })
 </script>
 
@@ -173,6 +248,15 @@ const editorFontStyles = computed(() => {
   <div class="paper-editor">
     <!-- 工具栏 -->
     <div v-if="editor" class="editor-toolbar">
+      <!-- 标题层级 & 模板字号指示 -->
+      <div v-if="activeLevelLabel" class="heading-level-badge"
+           :title="`「${activeLevelLabel}」章节 · 编辑器文字自动使用模板预设字号 ${effectiveFontSizeText}`">
+        <span class="hlb-level">H{{ headingLevel }}</span>
+        <span class="hlb-label">{{ activeLevelLabel }}</span>
+        <span v-if="effectiveFontSizeText" class="hlb-size">{{ effectiveFontSizeText }}</span>
+      </div>
+      <span v-if="activeLevelLabel" class="toolbar-divider" />
+
       <!-- 文本样式 -->
       <div class="toolbar-group">
         <button
@@ -416,6 +500,42 @@ const editorFontStyles = computed(() => {
 .font-select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(79, 119, 106, 0.08);
+}
+
+/* ---- 标题层级指示徽章 ---- */
+.heading-level-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--primary-tint);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: default;
+}
+.hlb-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.hlb-label {
+  color: var(--text-main);
+  font-size: 11px;
+}
+.hlb-size {
+  color: var(--text-mute);
+  font-size: 10px;
+  font-weight: 400;
 }
 
 /* ===== 编辑区域 ===== */
