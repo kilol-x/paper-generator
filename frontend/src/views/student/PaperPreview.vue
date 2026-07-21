@@ -71,13 +71,18 @@ const paperWrapper = ref(null)
 // ========== 获取论文数据 ==========
 const fetchPaperData = async () => {
   try {
-    const res = await axios.get(`/api/student/papers/${paperId.value}/preview`)
+    const token = localStorage.getItem('token') || localStorage.getItem('paper-access-token')
+    const res = await axios.get(`/api/student/papers/${paperId.value}/preview`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    })
     paperData.value = res.data
     pages.value = splitIntoPages(res.data.fullHtml)
     totalPages.value = pages.value.length
   } catch (error) {
+    console.error('加载失败', error)
     ElMessage.error('加载论文数据失败')
-    console.error(error)
   }
 }
 

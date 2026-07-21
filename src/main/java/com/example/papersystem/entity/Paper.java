@@ -24,6 +24,14 @@ public class Paper {
     @Column(name = "student_id", nullable = false)
     private Long studentId;
 
+    // ✅ 新增：学生姓名
+    @Column(name = "student_name")
+    private String studentName;
+
+    // ✅ 新增：学生学号
+    @Column(name = "student_id_number")
+    private String studentIdNumber;
+
     @Lob
     @Column(columnDefinition = "LONGTEXT")
     private String content;
@@ -31,6 +39,8 @@ public class Paper {
     @Column(nullable = false, length = 20)
     private String status;
 
+    @Column(name = "template_id")
+    private Long templateId;   //
     @Column(name = "teacher_id")
     private Long teacherId;
 

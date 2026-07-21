@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+﻿import { createRouter, createWebHistory } from 'vue-router'
 
 
 const routes = [
@@ -15,14 +15,14 @@ const routes = [
     meta: { requiresAuth: true }
   },
 
-  // ========== 👇 新增：论文预览路由（人员5 添加） ==========
+  // ========== 馃憞 鏂板锛氳鏂囬瑙堣矾鐢憋紙浜哄憳5 娣诲姞锛?==========
   {
     path: '/preview/:id',
     name: 'PaperPreview',
-    component: () => import('../views/student/PaperPreview.vue'),
+    component: () => import('../views/student/PaperPreviewNew.vue'),
     meta: { requiresAuth: true }
   },
-  // ========== 全新预览页 ==========
+  // ========== 鍏ㄦ柊棰勮椤?==========
   {
     path: '/full-preview/:id',
     name: 'PaperFullPreview',
@@ -30,7 +30,7 @@ const routes = [
     meta: { requiresAuth: true }
   },
 
-  // ========== 404 兜底路由（放在最后） ==========
+  // ========== 404 鍏滃簳璺敱锛堟斁鍦ㄦ渶鍚庯級 ==========
   {
     path: '/:pathMatch(.*)*',
     redirect: '/'
@@ -48,7 +48,7 @@ function isAuthenticated() {
   return !!(session && token)
 }
 
-// 全局导航守卫
+// 鍏ㄥ眬瀵艰埅瀹堝崼
 router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !isAuthenticated()) {
     next('/')

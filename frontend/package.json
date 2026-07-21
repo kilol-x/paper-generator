@@ -22,7 +22,9 @@
     "@tiptap/vue-3": "^2.1.0",
     "@vitejs/plugin-vue": "latest",
     "axios": "^1.6.0",
+    "docx": "^9.7.1",
     "element-plus": "^2.14.3",
+    "pdfmake": "^0.3.11",
     "vite": "latest",
     "vue": "latest",
     "vue-router": "^4.6.4"
