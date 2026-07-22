@@ -183,7 +183,12 @@ function extractMaxLevelFromSnapshot(snap) {
   return 3
 }
 
-/** 打开层级选择器：parentId 为 null → 根章节，字符串 → 某章节的子章节 */
+/** 添加根章节（一级标题，直接创建不弹窗） */
+function addRootChapter() {
+  addSection(null, 1)
+}
+
+/** 打开层级选择器（为子章节弹窗）：parentId 为 null → 根，字符串 → 某章节的子 */
 function openLevelPicker(parentId) {
   levelPickerParentId.value = parentId
 }
@@ -235,18 +240,6 @@ function addSection(parentId, targetLevel) {
     sortOrder: siblings.length
   }
   sections.value.push(newSection)
-
-  // 🔍 调试日志：确认 parentId 正确传递（上线后可删除）
-  console.log('[addSection]', {
-    parentId_in: parentId,
-    isRoot: parentId === null || parentId === undefined,
-    parentTitle: parentSection?.title || '(根)',
-    newId: newSection.id,
-    newLevel: level,
-    newParentId: newSection.parentId
-  })
-  console.log('[Chapters tree] root chapters:',
-    chaptersOnly.value.filter(s => !s.parentId).map(s => s.title + ' [' + s.level + ']'))
 
   activeSectionId.value = newSection.id
   startRenameTitle(newSection.id)
@@ -390,14 +383,26 @@ async function savePaper({ mode = 'MANUAL_SAVE', silent = false } = {}) {
     let res
     if (paperId.value) {
       res = await request.put(`/api/papers/${paperId.value}`, payload)
-      // 刷新 paperId，防止 ref 与路由不同步
-      if (res?.data?.id) paperId.value = res.data.id
     } else {
       res = await request.post('/api/papers', payload)
-      paperId.value = res?.id || res?.data?.id
-      if (paperId.value) {
-        router.replace({ name: 'EditPaper', params: { id: paperId.value } })
-      }
+    }
+
+    // 检查后端业务状态码（后端错误也返回 HTTP 200）
+    if (res.code !== 200) {
+      throw new Error(res.message || '保存失败')
+    }
+
+    // 从响应同步 paperId（保底：route.params.id）
+    const idFromRes = res?.data?.id
+    if (idFromRes) {
+      paperId.value = idFromRes
+    } else if (route.params.id) {
+      paperId.value = route.params.id
+    }
+
+    // 新建论文时补充路由（首次 POST 保存后 URL 获得 id）
+    if (paperId.value && !route.params.id) {
+      router.replace({ name: 'EditPaper', params: { id: paperId.value } })
     }
 
     dirty.value = false
@@ -405,7 +410,7 @@ async function savePaper({ mode = 'MANUAL_SAVE', silent = false } = {}) {
       ElMessage.success('保存成功')
     }
   } catch (err) {
-    const msg = err?.response?.data?.message || '保存失败'
+    const msg = err?.response?.data?.message || err.message || '保存失败'
     if (!silent) {
       ElMessage.error(msg)
     }
@@ -440,8 +445,11 @@ function onBeforeUnload(e) {
 }
 
 // ==================== 加载 ====================
+let loadingPaper = false // 防重入标志，避免 loadPaper 并发执行互相覆盖
 async function loadPaper() {
   if (!paperId.value) return
+  if (loadingPaper) return // 已在加载中，跳过重复调用
+  loadingPaper = true
   loading.value = true
   try {
     const res = await request.get(`/api/papers/${paperId.value}`)
@@ -477,6 +485,7 @@ async function loadPaper() {
     ElMessage.error('加载论文失败')
   } finally {
     loading.value = false
+    loadingPaper = false
   }
 }
 
@@ -567,16 +576,18 @@ function onTemplateChanged(templateData) {
   ElMessage.success(`已套用模板「${tpl.name}」`)
 }
 
-// 监听路由参数变化，当从无 ID 变为有 ID 时同步 paperId
+// 路由参数是 paperId 的唯一权威来源，始终与 URL 保持同步
 watch(() => route.params.id, (newId) => {
-  if (newId && !paperId.value) {
-    paperId.value = newId
-    loadPaper()
+  if (newId) {
+    if (!paperId.value || String(paperId.value) !== String(newId)) {
+      paperId.value = newId
+      loadPaper()
+    }
   }
 })
 
-onMounted(() => {
-  loadPaper()
+onMounted(async () => {
+  await loadPaper()
   document.addEventListener('keydown', onGlobalKeydown)
   window.addEventListener('beforeunload', onBeforeUnload)
   startAutoSave()
@@ -593,22 +604,29 @@ function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
+/** 当前论文 ID — route 是唯一权威来源，paperId ref 仅作缓存 */
+function resolvePaperId() {
+  return paperId.value || route.params.id || null
+}
+
 async function goPreview() {
   // 如果有未保存的修改，自动保存后再预览
   if (dirty.value) {
     await savePaper({ mode: 'MANUAL_SAVE', silent: true })
-    // savePaper 内部已 catch 错误不会抛出；如果保存后仍然 dirty 说明保存失败
     if (dirty.value) {
       ElMessage.warning('保存失败，请检查网络后重试')
       return
     }
   }
-  // 保存后仍然没有 paperId，说明尚未创建论文
-  if (!paperId.value) {
+
+  // 以路由参数为第一优先，ref 为兜底
+  const id = resolvePaperId()
+  if (!id) {
     ElMessage.warning('请先保存论文再预览')
     return
   }
-  const routeData = router.resolve({ name: 'PaperPreview', params: { id: paperId.value } })
+
+  const routeData = router.resolve({ name: 'PaperPreview', params: { id } })
   window.open(routeData.href, '_blank')
 }
 
@@ -701,7 +719,7 @@ function onReferenceCite(payload) {
         <template v-if="sidebarTab === 'outline'">
           <div class="sidebar-header">
             <span class="sidebar-title">论文结构</span>
-            <el-button size="small" :icon="Plus" circle @click="openLevelPicker(null)" title="添加章节" />
+            <el-button size="small" :icon="Plus" circle @click="addRootChapter" title="添加一级标题章节" />
           </div>
 
           <div class="section-list">
@@ -749,7 +767,7 @@ function onReferenceCite(payload) {
           </div>
 
           <div v-if="chaptersOnly.length === 0 && sections.length <= SPECIAL_SECTIONS.length" class="sidebar-empty">
-            <el-button type="primary" :icon="Plus" @click="openLevelPicker(null)">添加章节</el-button>
+            <el-button type="primary" :icon="Plus" @click="addRootChapter">添加章节</el-button>
           </div>
         </template>
 

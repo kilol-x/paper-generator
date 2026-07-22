@@ -15,11 +15,20 @@ const emit = defineEmits([
   'update-editing', 'keydown', 'move', 'reorder'
 ])
 
+const collapsed = ref(false)
+
 const children = computed(() =>
   props.allChapters
     .filter(c => c.parentId === props.section.id)
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
 )
+
+function toggleCollapse(e) {
+  e.stopPropagation()
+  if (children.value.length > 0) {
+    collapsed.value = !collapsed.value
+  }
+}
 
 const indent = computed(() => props.depth * 20)
 
@@ -67,8 +76,13 @@ function onDrop(e, targetId) {
       @drop="onDrop($event, section.id)"
     >
       <!-- 折叠/展开指示器 -->
-      <span class="chapter-caret" :class="{ 'chapter-caret--hidden': children.length === 0 }">
-        <svg v-if="children.length > 0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      <span
+        class="chapter-caret"
+        :class="{ 'chapter-caret--hidden': children.length === 0 }"
+        @click.stop="toggleCollapse"
+      >
+        <svg v-if="collapsed" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <svg v-else-if="children.length > 0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </span>
 
@@ -107,25 +121,27 @@ function onDrop(e, targetId) {
     </div>
 
     <!-- 递归子节点 -->
-    <ChapterNode
-      v-for="child in children"
-      :key="child.id"
-      :section="child"
-      :all-chapters="allChapters"
-      :active-id="activeId"
-      :editing-id="editingId"
-      :editing-value="editingValue"
-      :depth="depth + 1"
-      @select="emit('select', $event)"
-      @add="emit('add', $event)"
-      @remove="emit('remove', $event)"
-      @edit="emit('edit', $event)"
-      @finish-edit="emit('finish-edit')"
-      @update-editing="emit('update-editing', $event)"
-      @keydown="emit('keydown', $event)"
-      @move="(id, dir) => emit('move', id, dir)"
-      @reorder="(src, tgt) => emit('reorder', src, tgt)"
-    />
+    <div v-show="!collapsed" class="chapter-children">
+      <ChapterNode
+        v-for="child in children"
+        :key="child.id"
+        :section="child"
+        :all-chapters="allChapters"
+        :active-id="activeId"
+        :editing-id="editingId"
+        :editing-value="editingValue"
+        :depth="depth + 1"
+        @select="emit('select', $event)"
+        @add="emit('add', $event)"
+        @remove="emit('remove', $event)"
+        @edit="emit('edit', $event)"
+        @finish-edit="emit('finish-edit')"
+        @update-editing="emit('update-editing', $event)"
+        @keydown="emit('keydown', $event)"
+        @move="(id, dir) => emit('move', id, dir)"
+        @reorder="(src, tgt) => emit('reorder', src, tgt)"
+      />
+    </div>
   </div>
 </template>
 
@@ -167,9 +183,26 @@ function onDrop(e, targetId) {
   width: 14px;
   color: var(--text-dim, #858982);
   flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .15s ease;
+}
+.chapter-caret:hover {
+  color: var(--primary, #4f776a);
 }
 .chapter-caret--hidden {
   visibility: hidden;
+}
+.chapter-caret svg {
+  transition: transform .15s ease;
+}
+
+/* ---- 子节点容器（折叠动画） ---- */
+.chapter-children {
+  overflow: hidden;
+  transition: opacity .2s ease, max-height .25s ease;
 }
 
 /* ---- 拖拽手柄（始终可见） ---- */
