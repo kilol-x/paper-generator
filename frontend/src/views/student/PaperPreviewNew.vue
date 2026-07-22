@@ -6,7 +6,7 @@ import { ArrowLeft, Download, FullScreen, View, Printer } from '@element-plus/ic
 import html2canvas from "html2canvas"
 import { jsPDF } from "jspdf"
 import axios from 'axios'
-import { extractEditorFonts } from '../../utils/fonts.js'
+import { extractEditorFonts, parseFontSize } from '../../utils/fonts.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,15 +25,38 @@ const chapters = ref([])
 
 // ─── 模板格式配置（从 templateSnapshot 解析） ───
 const templateFormatConfig = ref(null)
+
 const headingFontStyles = computed(() => {
-  const fonts = extractEditorFonts(templateFormatConfig.value)
+  const cfg = templateFormatConfig.value
+  const fonts = extractEditorFonts(cfg)
   const style = {}
-  if (fonts.heading1FontSize) style['--pv-h1-size'] = fonts.heading1FontSize + 'pt'
-  if (fonts.heading2FontSize) style['--pv-h2-size'] = fonts.heading2FontSize + 'pt'
-  if (fonts.heading3FontSize) style['--pv-h3-size'] = fonts.heading3FontSize + 'pt'
-  if (fonts.heading1Font)     style['--pv-h1-font'] = fonts.heading1Font
-  if (fonts.heading2Font)     style['--pv-h2-font'] = fonts.heading2Font
-  if (fonts.heading3Font)     style['--pv-h3-font'] = fonts.heading3Font
+
+  // ── 标题字号 ──
+  const h1 = parseFontSize(fonts.heading1FontSize)
+  const h2 = parseFontSize(fonts.heading2FontSize)
+  const h3 = parseFontSize(fonts.heading3FontSize)
+  if (h1) style['--pv-h1-size'] = h1 + 'pt'
+  if (h2) style['--pv-h2-size'] = h2 + 'pt'
+  if (h3) style['--pv-h3-size'] = h3 + 'pt'
+
+  // ── 标题字体 ──
+  if (fonts.heading1Font) style['--pv-h1-font'] = fonts.heading1Font
+  if (fonts.heading2Font) style['--pv-h2-font'] = fonts.heading2Font
+  if (fonts.heading3Font) style['--pv-h3-font'] = fonts.heading3Font
+
+  // ── 正文字号（body1 / body2 / body3，按章节层级） ──
+  const b1 = parseFontSize(cfg?.body1?.fontSize) || parseFontSize(fonts.bodyFontSize)
+  const b2 = parseFontSize(cfg?.body2?.fontSize) || b1
+  const b3 = parseFontSize(cfg?.body3?.fontSize) || b2
+  if (b1) style['--pv-body1-size'] = b1 + 'pt'
+  if (b2) style['--pv-body2-size'] = b2 + 'pt'
+  if (b3) style['--pv-body3-size'] = b3 + 'pt'
+
+  // ── 通用回退（body） ──
+  const body = parseFontSize(fonts.bodyFontSize)
+  if (body) style['--pv-body-size'] = body + 'pt'
+  if (fonts.bodyFont) style['--pv-body-font'] = fonts.bodyFont
+
   return style
 })
 
@@ -551,7 +574,7 @@ function buildRefText(ref, index) {
                      :class="'level-' + (ch.depth || 1)">
             {{ ch.title }}
           </component>
-          <div class="section-text" v-html="ch.content" />
+          <div class="section-text" :class="'body-level-' + (ch.depth || 1)" v-html="ch.content" />
         </div>
 
         <!-- 参考文献 -->
@@ -629,7 +652,7 @@ function buildRefText(ref, index) {
                   <component :is="'h' + Math.min(ch.level || 1, 4)" class="chapter-head" :class="'level-' + (ch.depth || 1)">
                     {{ ch.title }}
                   </component>
-                  <div class="section-text" v-html="ch.content" />
+                  <div class="section-text" :class="'body-level-' + (ch.depth || 1)" v-html="ch.content" />
                 </div>
               </template>
             </template>
@@ -715,17 +738,28 @@ function buildRefText(ref, index) {
   margin: 0 0 50px; font-style: italic;
 }
 .cover-meta { display: inline-block; text-align: left; margin-top: 30px; }
-.cover-row { display: flex; gap: 16px; padding: 10px 0; font-size: 16px; border-bottom: 1px solid #eee; }
+.cover-row {
+  display: flex; gap: 16px; padding: 10px 0;
+  font-size: var(--pv-body-size, 12pt); border-bottom: 1px solid #eee;
+}
 .cover-row label { width: 80px; color: #666; font-weight: 500; flex-shrink: 0; }
 .cover-row span { color: #242622; }
 
 /* ═══════ 章节 ═══════ */
-.section-heading { font-family: SimHei, 'Noto Serif SC', serif;
-  font-family: "Noto Serif SC", serif;
-  font-size: 22px; font-weight: 700; text-align: center;
+.section-heading {
+  font-family: var(--pv-h1-font, "Noto Serif SC", serif);
+  font-size: var(--pv-h1-size, 22px); font-weight: 700; text-align: center;
   margin: 0 0 30px; letter-spacing: 0.15em;
 }
-.section-text { font-family: SimSun, serif; font-size: 15px; line-height: 1.9; color: #333; text-align: justify; }
+.section-text {
+  font-family: var(--pv-body-font, SimSun, serif);
+  font-size: var(--pv-body-size, 12pt); line-height: 1.9; color: #333; text-align: justify;
+}
+/* 按章节层级应用不同正文字号 */
+.section-text.body-level-1 { font-size: var(--pv-body1-size, var(--pv-body-size, 12pt)); }
+.section-text.body-level-2 { font-size: var(--pv-body2-size, var(--pv-body-size, 11pt)); }
+.section-text.body-level-3,
+.section-text.body-level-4 { font-size: var(--pv-body3-size, var(--pv-body-size, 10.5pt)); }
 .section-text :deep(p) { text-indent: 2em; margin: 0.6em 0; }
 .section-text :deep(img) { max-width: 100%; display: block; margin: 10px auto; }
 .section-text :deep(table) { border-collapse: collapse; width: 100%; margin: 0.8em 0; }
@@ -747,18 +781,25 @@ h3.chapter-head, .level-3 {
 }
 h4.chapter-head, .level-4 { font-size: 15px; font-family: SimHei, sans-serif; }
 
-.keywords { margin-top: 16px; font-size: 14px; color: #555; line-height: 1.6; }
+.keywords {
+  margin-top: 16px; font-size: var(--pv-body-size, 12pt); color: #555; line-height: 1.6;
+}
 .keywords strong { color: #242622; }
 
 /* ═══════ 目录 ═══════ */
 .toc-list { margin-top: 16px; }
-.toc-item { display: flex; align-items: baseline; padding: 5px 0; font-size: 15px; color: #333; }
+.toc-item {
+  display: flex; align-items: baseline; padding: 5px 0;
+  font-size: var(--pv-body-size, 12pt); color: #333;
+}
 .toc-title { flex-shrink: 0; }
 .toc-dots { flex: 1; border-bottom: 1px dotted #ccc; margin: 0 6px; min-width: 20px; }
 
 /* ═══════ 参考文献 ═══════ */
 .ref-list { padding-left: 1.6em; }
-.ref-entry { font-size: 13px; line-height: 1.8; color: #444; margin: 4px 0; }
+.ref-entry {
+  font-size: var(--pv-body-size, 10pt); line-height: 1.8; color: #444; margin: 4px 0;
+}
 
 .preview-empty { display: flex; justify-content: center; padding: 100px 0; }
 

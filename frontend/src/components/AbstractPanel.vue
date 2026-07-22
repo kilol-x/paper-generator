@@ -4,7 +4,9 @@ import PaperEditor from './PaperEditor.vue'
 import { Plus, Delete } from '@element-plus/icons-vue'
 
 const props = defineProps({
-  modelValue: { type: Object, default: () => ({}) }
+  modelValue: { type: Object, default: () => ({}) },
+  /** 模板 formatJson 解析后的对象，用于自动套用模板字体 */
+  formatConfig: { type: Object, default: undefined }
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -59,6 +61,8 @@ function removeKeyword(lang, idx) {
       <PaperEditor
         :model-value="form.abstractCn"
         placeholder="请输入中文摘要…"
+        :format-config="formatConfig"
+        section-type="abstract"
         @update:model-value="onCnChange"
       />
 
@@ -93,6 +97,8 @@ function removeKeyword(lang, idx) {
         :model-value="form.abstractEn"
         placeholder="Please enter English abstract…"
         @update:model-value="onEnChange"
+        :format-config="formatConfig"
+        section-type="abstract"
       />
       <div class="kw-section">
         <label>英文关键词（Keywords）</label>

@@ -10,7 +10,7 @@ import AbstractPanel from '../components/AbstractPanel.vue'
 import ReferencePanel from '../components/ReferencePanel.vue'
 import VersionPanel from '../components/VersionPanel.vue'
 import TemplatePickerDialog from '../components/TemplatePickerDialog.vue'
-import { toCssFont } from '../utils/fonts'
+import { resolveConfigFont, parseFontSize } from '../utils/fonts'
 import request from '../api/request'
 
 const route = useRoute()
@@ -70,12 +70,12 @@ const headingBreadcrumbStyle = computed(() => {
   const cfg = editorFormatConfig.value
   const level = activeSection.value?.level
   if (!cfg || !level || level < 1 || level > 3) return {}
-  const key = 'heading' + level
-  const headingCfg = cfg[key]
+  const headingCfg = cfg['heading' + level]
   if (!headingCfg) return {}
   const style = {}
-  if (headingCfg.fontSize) style.fontSize = headingCfg.fontSize + 'pt'
-  const cssFont = toCssFont(headingCfg.font)
+  const size = parseFontSize(headingCfg.fontSize)
+  if (size != null) style.fontSize = size + 'pt'
+  const cssFont = resolveConfigFont(headingCfg)
   if (cssFont) style.fontFamily = cssFont
   if (headingCfg.bold !== false) style.fontWeight = 'bold'
   return style
@@ -797,7 +797,7 @@ function onReferenceCite(payload) {
 
         <!-- 摘要编辑面板 -->
         <div v-else-if="activeSectionId === 'meta-abstract'" class="panel-wrapper">
-          <AbstractPanel v-model="abstractData" />
+          <AbstractPanel v-model="abstractData" :format-config="editorFormatConfig" />
         </div>
 
         <!-- 参考文献面板 -->
@@ -817,6 +817,7 @@ function onReferenceCite(payload) {
             :model-value="sections.find(s => s.id === 'meta-acknowledgment')?.content || ''"
             placeholder="撰写致谢…"
             :format-config="editorFormatConfig"
+            section-type="acknowledgment"
             :heading-level="0"
             @update:model-value="onAcknowledgmentChange"
           />
@@ -829,6 +830,7 @@ function onReferenceCite(payload) {
             :model-value="activeSection.content"
             :placeholder="`撰写「${activeSection.title}」内容…`"
             :format-config="editorFormatConfig"
+            section-type="chapter"
             :heading-level="activeSection.level || 0"
             @update:model-value="onContentChange"
           />
