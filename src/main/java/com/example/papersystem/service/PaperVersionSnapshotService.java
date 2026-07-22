@@ -16,7 +16,11 @@ import java.util.Map;
 @Service
 public class PaperVersionSnapshotService {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    public PaperVersionSnapshotService(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     public String buildSnapshot(Paper paper, List<ReferenceEntry> references) {
         return buildSnapshot(paper == null ? null : paper.getContent(), references);
@@ -27,7 +31,7 @@ public class PaperVersionSnapshotService {
         snapshot.put("sections", parseSections(content));
         snapshot.put("references", normalizeReferences(references));
         try {
-            return OBJECT_MAPPER.writeValueAsString(snapshot);
+            return objectMapper.writeValueAsString(snapshot);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("版本快照序列化失败", e);
         }
@@ -43,22 +47,22 @@ public class PaperVersionSnapshotService {
         }
 
         try {
-            JsonNode root = OBJECT_MAPPER.readTree(rawSnapshot);
+            JsonNode root = objectMapper.readTree(rawSnapshot);
             if (root.isArray()) {
                 snapshot.put("sections",
-                        OBJECT_MAPPER.convertValue(root, new TypeReference<List<Map<String, Object>>>() {
+                        objectMapper.convertValue(root, new TypeReference<List<Map<String, Object>>>() {
                         }));
                 return snapshot;
             }
 
             if (root.isObject()) {
                 if (root.has("sections") && root.get("sections").isArray()) {
-                    snapshot.put("sections", OBJECT_MAPPER.convertValue(root.get("sections"),
+                    snapshot.put("sections", objectMapper.convertValue(root.get("sections"),
                             new TypeReference<List<Map<String, Object>>>() {
                             }));
                 }
                 if (root.has("references") && root.get("references").isArray()) {
-                    snapshot.put("references", OBJECT_MAPPER.convertValue(root.get("references"),
+                    snapshot.put("references", objectMapper.convertValue(root.get("references"),
                             new TypeReference<List<Map<String, Object>>>() {
                             }));
                 }
@@ -101,7 +105,7 @@ public class PaperVersionSnapshotService {
         }
 
         try {
-            return OBJECT_MAPPER.readValue(content, new TypeReference<List<Map<String, Object>>>() {
+            return objectMapper.readValue(content, new TypeReference<List<Map<String, Object>>>() {
             });
         } catch (JsonProcessingException e) {
             return List.of();
