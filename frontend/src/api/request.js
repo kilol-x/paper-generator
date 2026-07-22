@@ -37,6 +37,14 @@ request.interceptors.response.use(
           break
         case 403:
           console.error('没有权限访问该资源')
+          localStorage.removeItem('token')
+          localStorage.removeItem('paper-access-token')
+          import('../router').then(({ default: router }) => {
+            router.push({
+              name: 'Login',
+              query: { redirect: router.currentRoute.value.fullPath }
+            })
+          })
           break
         case 500:
           console.error('服务器内部错误')
