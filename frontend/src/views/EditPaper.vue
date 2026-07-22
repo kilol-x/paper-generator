@@ -390,6 +390,8 @@ async function savePaper({ mode = 'MANUAL_SAVE', silent = false } = {}) {
     let res
     if (paperId.value) {
       res = await request.put(`/api/papers/${paperId.value}`, payload)
+      // 刷新 paperId，防止 ref 与路由不同步
+      if (res?.data?.id) paperId.value = res.data.id
     } else {
       res = await request.post('/api/papers', payload)
       paperId.value = res?.id || res?.data?.id
@@ -565,6 +567,14 @@ function onTemplateChanged(templateData) {
   ElMessage.success(`已套用模板「${tpl.name}」`)
 }
 
+// 监听路由参数变化，当从无 ID 变为有 ID 时同步 paperId
+watch(() => route.params.id, (newId) => {
+  if (newId && !paperId.value) {
+    paperId.value = newId
+    loadPaper()
+  }
+})
+
 onMounted(() => {
   loadPaper()
   document.addEventListener('keydown', onGlobalKeydown)
@@ -583,7 +593,17 @@ function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
-function goPreview() {
+async function goPreview() {
+  // 如果有未保存的修改，自动保存后再预览
+  if (dirty.value) {
+    await savePaper({ mode: 'MANUAL_SAVE', silent: true })
+    // savePaper 内部已 catch 错误不会抛出；如果保存后仍然 dirty 说明保存失败
+    if (dirty.value) {
+      ElMessage.warning('保存失败，请检查网络后重试')
+      return
+    }
+  }
+  // 保存后仍然没有 paperId，说明尚未创建论文
   if (!paperId.value) {
     ElMessage.warning('请先保存论文再预览')
     return
@@ -596,7 +616,7 @@ function handleLogout() {
   localStorage.removeItem('token')
   localStorage.removeItem('paper-access-token')
   sessionStorage.removeItem('paper-user-session')
-  router.push({ name: 'Login' })
+  window.location.href = '/'
 }
 
 // 版本恢复回调

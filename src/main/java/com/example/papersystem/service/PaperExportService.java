@@ -192,8 +192,8 @@ public class PaperExportService {
                 for (PaperReference ref : references) {
                     StringBuilder sb = new StringBuilder();
                     sb.append("[").append(idx++).append("] ");
-                    if (ref.getAuthor() != null || ref.getAuthor() != null) {
-                        sb.append(ref.getAuthor() != null ? ref.getAuthor() : ref.getAuthor()).append(". ");
+                    if (ref.getAuthor() != null) {
+                        sb.append(ref.getAuthor()).append(". ");
                     }
                     if (ref.getTitle() != null) sb.append("《").append(ref.getTitle()).append("》");
                     if (ref.getType() != null) {
@@ -208,8 +208,8 @@ public class PaperExportService {
                     if (ref.getYear() != null) sb.append(", ").append(ref.getYear());
                     if (ref.getVolume() != null) sb.append(", ").append(ref.getVolume());
                     if (ref.getIssue() != null) sb.append("(").append(ref.getIssue()).append(")");
-                    if (ref.getPage() != null || ref.getPage() != null) {
-                        sb.append(": ").append(ref.getPage() != null ? ref.getPage() : ref.getPage());
+                    if (ref.getPage() != null) {
+                        sb.append(": ").append(ref.getPage());
                     }
                     sb.append(".");
 

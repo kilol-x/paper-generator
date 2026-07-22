@@ -34,9 +34,27 @@ public class PaperPreviewService {
         Paper paper = paperRepository.findById(paperId)
                 .orElseThrow(() -> new RuntimeException("论文不存在"));
 
-        // 2. 获取模板信息
-        Template template = templateRepository.findById(paper.getTemplateId())
-                .orElseThrow(() -> new RuntimeException("模板不存在"));
+        // 2. 获取模板信息（优先从数据库，降级使用快照）
+
+        Template template = null;
+        if (paper.getTemplateId() != null) {
+            template = templateRepository.findById(paper.getTemplateId()).orElse(null);
+        }
+        // 如果模板已被删除或从未绑定，构造一个占位模板对象供渲染使用
+        String templateName = "未绑定模板";
+
+        if (template != null) {
+            templateName = template.getName();
+        } else if (paper.getTemplateSnapshot() != null) {
+            // 尝试从快照中解析模板名称
+            try {
+                var snapshotMap = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(paper.getTemplateSnapshot(), java.util.Map.class);
+                Object name = snapshotMap.get("templateName");
+                if (name != null) templateName = name.toString();
+            } catch (Exception ignored) {
+            }
+        }
 
         // 3. 获取章节列表
         List<PaperChapter> chapters = chapterRepository.findByPaperIdOrderBySortOrderAsc(paperId);
@@ -48,8 +66,8 @@ public class PaperPreviewService {
         PaperPreviewDTO dto = new PaperPreviewDTO();
         dto.setPaperId(paper.getId());
         dto.setTitle(paper.getTitle());
-        dto.setTemplateId(template.getId());
-        dto.setTemplateName(template.getName());
+        dto.setTemplateId(template != null ? template.getId() : paper.getTemplateId());
+        dto.setTemplateName(templateName);
         dto.setStudentId(paper.getStudentId());
         dto.setStudentName(paper.getStudentName() != null ? paper.getStudentName() : "未命名");
 
@@ -70,7 +88,7 @@ public class PaperPreviewService {
         dto.setReferences(referenceDTOs);
 
         // 8. 生成完整 HTML
-        String fullHtml = buildFullHtml(paper, template, chapterDTOs, referenceDTOs);
+        String fullHtml = buildFullHtml(paper, templateName, chapterDTOs, referenceDTOs);
         dto.setFullHtml(fullHtml);
 
         // 9. 图片列表（暂空，后续扩展）
@@ -113,7 +131,7 @@ public class PaperPreviewService {
     /**
      * 构建完整论文 HTML
      */
-    private String buildFullHtml(Paper paper, Template template,
+    private String buildFullHtml(Paper paper, String templateName,
                                  List<PaperPreviewDTO.ChapterDTO> chapters,
                                  List<PaperPreviewDTO.ReferenceDTO> references) {
         StringBuilder html = new StringBuilder();
@@ -147,7 +165,7 @@ public class PaperPreviewService {
         html.append("  <h1 class=\"cover-title\">").append(paper.getTitle()).append("</h1>\n");
         html.append("  <div class=\"cover-info\">\n");
         html.append("    <p>学生：").append(paper.getStudentName() != null ? paper.getStudentName() : "").append("</p>\n");
-        html.append("    <p>模板：").append(template.getName()).append("</p>\n");
+        html.append("    <p>模板：").append(templateName).append("</p>\n");
         html.append("    <p>日期：").append(LocalDate.now()).append("</p>\n");
         html.append("  </div>\n");
         html.append("</div>\n");

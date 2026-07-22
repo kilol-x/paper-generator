@@ -9,7 +9,9 @@ const content = ref('')
 
 function handleLogout() {
   localStorage.removeItem('token')
-  router.push({ name: 'Login' })
+  localStorage.removeItem('paper-access-token')
+  sessionStorage.removeItem('paper-user-session')
+  window.location.href = '/'
 }
 </script>
 
