@@ -57,6 +57,17 @@ function applyTemplate(tpl) {
   focusedCell.value = { row: -1, col: -1 }
 }
 
+/** 快速模板直接插入空表格（一键操作，无需填充单元格） */
+function quickInsert(tpl) {
+  initCells(tpl.rows, tpl.cols, null)
+  isThreeLine.value = true
+  tableTitle.value = ''
+  tableNote.value = ''
+  const html = generateHtml()
+  emit('insert', html)
+  emit('update:modelValue', false)
+}
+
 // ==================== 行列操作 ====================
 function addRow() {
   const newRow = new Array(cols.value).fill('')
@@ -360,13 +371,14 @@ const colLetters = computed(() => {
         <div class="te-body">
           <!-- ====== 快速模板区 ====== -->
           <div class="te-section">
-            <div class="te-section-label">快速模板</div>
+            <div class="te-section-label">快速模板（点击直接插入空表格）</div>
             <div class="te-templates">
               <button
                 v-for="tpl in TEMPLATES"
                 :key="tpl.key"
                 class="te-tpl-card"
-                @click="applyTemplate(tpl)"
+                @click="quickInsert(tpl)"
+                title="点击直接插入空表格"
               >
                 <!-- 缩略预览 -->
                 <div class="te-tpl-thumb" :class="{ three: isThreeLine }">
@@ -387,6 +399,23 @@ const colLetters = computed(() => {
                   <span class="te-tpl-name">{{ tpl.name }}</span>
                   <span class="te-tpl-desc">{{ tpl.desc }}</span>
                 </div>
+                <span class="te-tpl-arrow">→</span>
+              </button>
+            </div>
+            <div class="te-quick-hint">
+              点击上方模板直接插入空表格，或使用下方编辑器自定义后再插入
+            </div>
+            <div class="te-custom-quick">
+              <span class="te-custom-label">自定义尺寸：</span>
+              <input type="number" v-model.number="rows" min="1" max="20" class="te-size-input" title="行数" />
+              <span>行 ×</span>
+              <input type="number" v-model.number="cols" min="1" max="20" class="te-size-input" title="列数" />
+              <span>列</span>
+              <button class="te-btn te-btn-quick-insert" @click="quickInsert({ rows, cols })">
+                直接插入空表格
+              </button>
+              <button class="te-btn te-btn-edit" @click="initCells(rows, cols, null); tableTitle=''; tableNote=''; mode='visual'">
+                进入编辑器
               </button>
             </div>
           </div>
@@ -669,6 +698,19 @@ X2	2.17	1.02"
   border-color: #4f776a;
   background: #f4f7f5;
 }
+.te-tpl-card:hover .te-tpl-arrow {
+  opacity: 1;
+  transform: translateX(0);
+}
+.te-tpl-arrow {
+  font-size: 18px;
+  color: #4f776a;
+  margin-left: auto;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all .18s;
+  font-weight: 700;
+}
 .te-tpl-thumb {
   width: 52px;
   flex-shrink: 0;
@@ -696,6 +738,68 @@ X2	2.17	1.02"
 .te-tpl-desc {
   font-size: 11px;
   color: #858982;
+}
+
+/* ---- 快速插入提示 & 自定义尺寸 ---- */
+.te-quick-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #b0b3ae;
+  text-align: center;
+}
+.te-custom-quick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: #f7f8f4;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #5c605a;
+}
+.te-custom-label {
+  font-weight: 600;
+  color: #4f776a;
+  font-size: 12px;
+}
+.te-size-input {
+  width: 52px;
+  height: 30px;
+  padding: 0 6px;
+  text-align: center;
+  border: 1px solid #d8d9d4;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  outline: none;
+  transition: border-color .15s;
+}
+.te-size-input:focus {
+  border-color: #4f776a;
+  box-shadow: 0 0 0 2px rgba(79, 119, 106, 0.1);
+}
+.te-btn-quick-insert {
+  margin-left: auto;
+  background: #4f776a;
+  color: #fff;
+  border-color: #4f776a;
+  padding: 6px 14px;
+  font-size: 12px;
+}
+.te-btn-quick-insert:hover {
+  background: #3e5f54;
+}
+.te-btn-edit {
+  background: #fff;
+  border-color: #d8d9d4;
+  color: #5c605a;
+  padding: 6px 14px;
+  font-size: 12px;
+}
+.te-btn-edit:hover {
+  background: #f0f1ed;
 }
 
 /* ---- 模式切换 ---- */
