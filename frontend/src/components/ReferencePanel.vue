@@ -3,6 +3,7 @@ import { reactive, watch, ref } from 'vue'
 import { Plus, Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import request from '../api/request'
+import { normalizeCitationMarker } from '../utils/citation.js'
 
 const props = defineProps({
   paperId: { type: [String, Number], default: null },
@@ -149,10 +150,10 @@ async function citeRef(item) {
   }
   try {
     const res = await request.get(`/api/papers/${props.paperId}/references/${item.id}/marker`)
-    const marker = res?.data?.marker || `[${item.citationNo}]`
+    const marker = normalizeCitationMarker(res?.data?.marker || `[${item.citationNo}]`, item.citationNo)
     emit('cite', {
       marker,
-      displayLabel: res?.data?.displayLabel || (item.year ? `${item.citationNo} (${item.year})` : String(item.citationNo)),
+      displayLabel: marker,
       citationNo: item.citationNo,
       ref: item
     })

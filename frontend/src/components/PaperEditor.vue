@@ -15,6 +15,7 @@ import { Underline } from '@tiptap/extension-underline'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import { extractEditorFonts, resolveConfigFont, parseFontSize } from '../utils/fonts.js'
+import { normalizeCitationMarker } from '../utils/citation.js'
 import TableEditor from './TableEditor.vue'
 
 const props = defineProps({
@@ -115,14 +116,17 @@ function insertCitationTag(payload) {
     return false
   }
 
+  const citationNo = payload.citationNo ?? payload.ref?.citationNo ?? null
+  const marker = normalizeCitationMarker(payload.marker, citationNo)
+
   return editor.value
     .chain()
     .focus()
     .insertCitationTag({
-      marker: payload.marker,
-      label: payload.displayLabel || payload.marker,
+      marker,
+      label: marker,
       referenceId: payload.ref?.id ?? null,
-      citationNo: payload.citationNo ?? payload.ref?.citationNo ?? null,
+      citationNo,
       year: payload.ref?.year || ''
     })
     .insertContent(' ')
@@ -697,26 +701,15 @@ const templateFontHint = computed(() => {
 }
 
 .editor-body :deep(.citation-tag-node) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 4px;
-  padding: 2px 10px;
-  border-radius: 999px;
-  border: 1px solid #e6b089;
-  background: #fff3e7;
-  color: #9a4f1f;
-  font-size: 0.92em;
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(154, 79, 31, 0.08);
+  display: inline;
+  margin-left: 2px;
+  color: inherit;
+  font-size: 0.75em;
+  font-weight: 400;
+  line-height: 1;
+  vertical-align: super;
   white-space: nowrap;
   user-select: all;
-}
-
-.editor-body :deep(.citation-tag-node)::before {
-  content: '⛓';
-  font-size: 0.9em;
-  opacity: 0.72;
 }
 
 /* ---- 图片 ---- */

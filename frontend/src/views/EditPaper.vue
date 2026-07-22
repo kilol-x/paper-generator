@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { normalizeCitationMarker } from '../utils/citation.js'
 import { Plus, View } from '@element-plus/icons-vue'
 import PaperEditor from '../components/PaperEditor.vue'
 import ChapterTree from '../components/ChapterTree.vue'
@@ -151,11 +152,12 @@ const chaptersOnly = computed(() =>
 const citationCandidates = computed(() =>
   referencesData.value.map((ref, index) => {
     const citationNo = ref.citationNo || index + 1
+    const marker = normalizeCitationMarker(`[${citationNo}]`, citationNo)
     return {
       ...ref,
       citationNo,
-      marker: `[${citationNo}]`,
-      displayLabel: ref.year ? `${citationNo} (${ref.year})` : String(citationNo)
+      marker,
+      displayLabel: marker
     }
   })
 )
@@ -709,10 +711,12 @@ function toggleReferenceWorkspace() {
 }
 
 function buildCitationPayload(reference) {
+  const citationNo = reference.citationNo
+  const marker = normalizeCitationMarker(reference.marker || `[${citationNo}]`, citationNo)
   return {
-    marker: reference.marker || `[${reference.citationNo}]`,
-    displayLabel: reference.displayLabel || (reference.year ? `${reference.citationNo} (${reference.year})` : String(reference.citationNo)),
-    citationNo: reference.citationNo,
+    marker,
+    displayLabel: marker,
+    citationNo,
     ref: reference
   }
 }

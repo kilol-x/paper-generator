@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core'
+import { normalizeCitationMarker } from '../utils/citation.js'
 
 export const CitationTag = Node.create({
   name: 'citationTag',
@@ -9,7 +10,7 @@ export const CitationTag = Node.create({
 
   addAttributes() {
     return {
-      marker: { default: '[1]' },
+      marker: { default: '【1】' },
       label: { default: '' },
       referenceId: { default: null },
       citationNo: { default: null },
@@ -22,15 +23,16 @@ export const CitationTag = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    const label = HTMLAttributes.label || HTMLAttributes.marker || '[?]'
+    const displayMarker = normalizeCitationMarker(HTMLAttributes.marker, HTMLAttributes.citationNo)
     return [
       'span',
       mergeAttributes(HTMLAttributes, {
+        marker: displayMarker,
         'data-citation-tag': 'true',
         class: 'citation-tag-node',
         contenteditable: 'false'
       }),
-      label
+      displayMarker
     ]
   },
 

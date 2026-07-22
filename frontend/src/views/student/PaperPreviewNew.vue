@@ -761,6 +761,12 @@ function buildRefText(ref, index) {
 .section-text.body-level-3,
 .section-text.body-level-4 { font-size: var(--pv-body3-size, var(--pv-body-size, 10.5pt)); }
 .section-text :deep(p) { text-indent: 2em; margin: 0.6em 0; }
+.section-text :deep(.citation-tag-node) {
+  font-size: 0.75em;
+  line-height: 1;
+  vertical-align: super;
+  white-space: nowrap;
+}
 .section-text :deep(img) { max-width: 100%; display: block; margin: 10px auto; }
 .section-text :deep(table) { border-collapse: collapse; width: 100%; margin: 0.8em 0; }
 .section-text :deep(th), .section-text :deep(td) { border: 1px solid #ccc; padding: 6px 10px; }
