@@ -3,6 +3,7 @@ package com.example.papersystem.controller;
 import com.example.papersystem.common.Result;
 import com.example.papersystem.entity.College;
 import com.example.papersystem.repository.CollegeRepository;
+import com.example.papersystem.repository.TemplateRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,9 @@ public class CollegeController {
 
     @Autowired
     private CollegeRepository collegeRepository;
+
+    @Autowired
+    private TemplateRepository templateRepository;
 
     @GetMapping
     public Result<List<College>> list(@RequestParam(required = false) String keyword) {
@@ -61,6 +65,12 @@ public class CollegeController {
     public Result<String> delete(@PathVariable Integer id) {
         if (!collegeRepository.existsById(id)) {
             return Result.error(404, "学院不存在");
+        }
+        long count = templateRepository.count(
+                (root, query, cb) -> cb.equal(root.get("collegeId"), id)
+        );
+        if (count > 0) {
+            return Result.error(400, "该学院下存在 " + count + " 个模板，无法删除。请先删除或迁移相关模板。");
         }
         collegeRepository.deleteById(id);
         return Result.success("删除成功", null);
