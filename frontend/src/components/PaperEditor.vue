@@ -15,7 +15,7 @@ import { Underline } from '@tiptap/extension-underline'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { ref, watch, onBeforeUnmount, computed } from 'vue'
 import { extractEditorFonts, resolveConfigFont, parseFontSize } from '../utils/fonts.js'
-import { normalizeCitationMarker } from '../utils/citation.js'
+import { normalizeCitationMarker, normalizeCitationTagsHtml } from '../utils/citation.js'
 import TableEditor from './TableEditor.vue'
 
 const props = defineProps({
@@ -30,6 +30,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+const citationNumberFormat = computed(() => props.formatConfig?.references?.numberFormat || '[N]')
 
 // ========== 编辑器实例 ==========
 const editor = useEditor({
@@ -60,7 +62,7 @@ const editor = useEditor({
     })
   ],
   onUpdate: ({ editor }) => {
-    emit('update:modelValue', editor.getHTML())
+    emit('update:modelValue', normalizeCitationTagsHtml(editor.getHTML(), citationNumberFormat.value))
   },
   editorProps: {
     attributes: {
@@ -70,11 +72,12 @@ const editor = useEditor({
 })
 
 // 外部 v-model 同步到编辑器
-watch(() => props.modelValue, value => {
-  if (editor.value && editor.value.getHTML() !== value) {
-    editor.value.commands.setContent(value, false)
+watch([() => props.modelValue, citationNumberFormat], ([value, numberFormat]) => {
+  const normalizedValue = normalizeCitationTagsHtml(value || '', numberFormat)
+  if (editor.value && editor.value.getHTML() !== normalizedValue) {
+    editor.value.commands.setContent(normalizedValue, false)
   }
-})
+}, { immediate: true })
 
 onBeforeUnmount(() => {
   editor.value?.destroy()
@@ -117,7 +120,8 @@ function insertCitationTag(payload) {
   }
 
   const citationNo = payload.citationNo ?? payload.ref?.citationNo ?? null
-  const marker = normalizeCitationMarker(payload.marker, citationNo)
+  const numberFormat = payload.numberFormat || '[N]'
+  const marker = normalizeCitationMarker(payload.marker, citationNo, numberFormat)
 
   return editor.value
     .chain()
@@ -127,14 +131,31 @@ function insertCitationTag(payload) {
       label: marker,
       referenceId: payload.ref?.id ?? null,
       citationNo,
+      numberFormat,
       year: payload.ref?.year || ''
     })
     .insertContent(' ')
     .run()
 }
 
+function normalizeCurrentCitations() {
+  if (!editor.value) {
+    return false
+  }
+
+  const normalizedValue = normalizeCitationTagsHtml(editor.value.getHTML(), citationNumberFormat.value)
+  if (editor.value.getHTML() === normalizedValue) {
+    return false
+  }
+
+  editor.value.commands.setContent(normalizedValue, false)
+  emit('update:modelValue', normalizedValue)
+  return true
+}
+
 defineExpose({
-  insertCitationTag
+  insertCitationTag,
+  normalizeCurrentCitations
 })
 
 // ========== 字体选择 ==========

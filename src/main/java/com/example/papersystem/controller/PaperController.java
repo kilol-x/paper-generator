@@ -475,7 +475,7 @@ public class PaperController {
         if (!text.endsWith(".")) {
             text = text + ".";
         }
-        return "[" + entry.getCitationNo() + "] " + text;
+        return text;
     }
 
     private PaperVersion recordDraftVersion(Paper paper, String action, String description, Long operatorId,

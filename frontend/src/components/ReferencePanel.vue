@@ -1,18 +1,50 @@
 <script setup>
-import { reactive, watch, ref } from 'vue'
+import { reactive, watch, ref, computed } from 'vue'
 import { Plus, Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import request from '../api/request'
-import { normalizeCitationMarker } from '../utils/citation.js'
+import { normalizeCitationMarker, stripLeadingCitationMarker } from '../utils/citation.js'
+import { parseFontSize, resolveConfigFont } from '../utils/fonts.js'
 
 const props = defineProps({
   paperId: { type: [String, Number], default: null },
-  modelValue: { type: Array, default: () => [] }
+  modelValue: { type: Array, default: () => [] },
+  formatConfig: { type: Object, default: undefined }
 })
 const emit = defineEmits(['update:modelValue', 'cite'])
 
 const refs = ref([])
 const loading = ref(false)
+
+const referenceTextStyle = computed(() => {
+  const cfg = props.formatConfig?.references
+  if (!cfg) {
+    return {}
+  }
+
+  const style = {}
+  const fontFamily = resolveConfigFont(cfg)
+  const fontSize = parseFontSize(cfg.fontSize)
+
+  if (fontFamily) style.fontFamily = fontFamily
+  if (fontSize != null) style.fontSize = `${fontSize}pt`
+  if (cfg.lineSpacing) style.lineHeight = String(cfg.lineSpacing)
+
+  return style
+})
+
+function formatCitationMarker(citationNo) {
+  const numberFormat = props.formatConfig?.references?.numberFormat || '[N]'
+  return normalizeCitationMarker('', citationNo, numberFormat)
+}
+
+function formatReferenceOrder(index) {
+  return `${index + 1}.`
+}
+
+function getReferenceText(ref) {
+  return stripLeadingCitationMarker(ref.formattedText || '') || '未命名文献'
+}
 
 watch(() => props.paperId, () => {
   loadRefs()
@@ -150,11 +182,12 @@ async function citeRef(item) {
   }
   try {
     const res = await request.get(`/api/papers/${props.paperId}/references/${item.id}/marker`)
-    const marker = normalizeCitationMarker(res?.data?.marker || `[${item.citationNo}]`, item.citationNo)
+    const marker = formatCitationMarker(item.citationNo)
     emit('cite', {
       marker,
       displayLabel: marker,
       citationNo: item.citationNo,
+      numberFormat: props.formatConfig?.references?.numberFormat || '[N]',
       ref: item
     })
   } catch {
@@ -178,9 +211,10 @@ async function citeRef(item) {
     </div>
 
     <div v-else class="ref-list">
-      <div v-for="ref in refs" :key="ref.id" class="ref-item">
-        <span class="ref-idx">[{{ ref.citationNo }}]</span>
-        <span class="ref-text">{{ ref.formattedText }}</span>
+      <div v-for="(ref, index) in refs" :key="ref.id" class="ref-item">
+        <span class="ref-order">{{ formatReferenceOrder(index) }}</span>
+        <span class="ref-idx">{{ formatCitationMarker(ref.citationNo) }}</span>
+        <span class="ref-text" :style="referenceTextStyle">{{ getReferenceText(ref) }}</span>
         <span class="ref-actions">
           <el-button size="small" text type="primary" @click="citeRef(ref)">引用</el-button>
           <el-button size="small" text :icon="Edit" @click="openEdit(ref)" />
@@ -236,6 +270,7 @@ async function citeRef(item) {
   transition: background .12s; border: 1px solid transparent;
 }
 .ref-item:hover { background: var(--bg-page); border-color: var(--border); }
+.ref-order { color: var(--text-mute); font-weight: 600; flex-shrink: 0; min-width: 2.2em; }
 .ref-idx { color: var(--primary); font-weight: 600; flex-shrink: 0; }
 .ref-text { flex: 1; line-height: 1.6; color: var(--text-main); }
 .ref-actions { display: flex; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity .12s; }

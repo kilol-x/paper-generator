@@ -152,12 +152,14 @@ const chaptersOnly = computed(() =>
 const citationCandidates = computed(() =>
   referencesData.value.map((ref, index) => {
     const citationNo = ref.citationNo || index + 1
-    const marker = normalizeCitationMarker(`[${citationNo}]`, citationNo)
+    const numberFormat = editorFormatConfig.value?.references?.numberFormat || '[N]'
+    const marker = normalizeCitationMarker(`[${citationNo}]`, citationNo, numberFormat)
     return {
       ...ref,
       citationNo,
       marker,
-      displayLabel: marker
+      displayLabel: marker,
+      numberFormat
     }
   })
 )
@@ -371,6 +373,11 @@ function onContentChange(html) {
 watch(activeSection, section => {
   if (section && (!section.type || section.type === 'chapter')) {
     lastActiveChapterId.value = section.id
+    nextTick(() => {
+      if (chapterEditorRef.value?.normalizeCurrentCitations?.()) {
+        dirty.value = true
+      }
+    })
   }
 }, { immediate: true })
 
@@ -712,11 +719,13 @@ function toggleReferenceWorkspace() {
 
 function buildCitationPayload(reference) {
   const citationNo = reference.citationNo
-  const marker = normalizeCitationMarker(reference.marker || `[${citationNo}]`, citationNo)
+  const numberFormat = reference.numberFormat || editorFormatConfig.value?.references?.numberFormat || '[N]'
+  const marker = normalizeCitationMarker(reference.marker || `[${citationNo}]`, citationNo, numberFormat)
   return {
     marker,
     displayLabel: marker,
     citationNo,
+    numberFormat,
     ref: reference
   }
 }
@@ -907,6 +916,7 @@ async function onReferenceCite(payload) {
           <ReferencePanel
             :paper-id="paperId"
             v-model="referencesData"
+            :format-config="editorFormatConfig"
             @cite="onReferenceCite"
           />
         </div>
@@ -963,6 +973,7 @@ async function onReferenceCite(payload) {
               <ReferencePanel
                 :paper-id="paperId"
                 v-model="referencesData"
+                :format-config="editorFormatConfig"
                 @cite="onReferenceCite"
               />
             </aside>

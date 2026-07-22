@@ -211,6 +211,6 @@ public class ReferenceController {
         if (!text.endsWith(".")) {
             text = text + ".";
         }
-        return "[" + entry.getCitationNo() + "] " + text;
+        return text;
     }
 }

@@ -10,10 +10,11 @@ export const CitationTag = Node.create({
 
   addAttributes() {
     return {
-      marker: { default: '【1】' },
+      marker: { default: '[1]' },
       label: { default: '' },
       referenceId: { default: null },
       citationNo: { default: null },
+      numberFormat: { default: '[N]' },
       year: { default: '' },
     }
   },
@@ -23,7 +24,11 @@ export const CitationTag = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    const displayMarker = normalizeCitationMarker(HTMLAttributes.marker, HTMLAttributes.citationNo)
+    const displayMarker = normalizeCitationMarker(
+      HTMLAttributes.marker,
+      HTMLAttributes.citationNo,
+      HTMLAttributes.numberFormat
+    )
     return [
       'span',
       mergeAttributes(HTMLAttributes, {

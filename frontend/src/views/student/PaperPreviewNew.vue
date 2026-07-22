@@ -6,7 +6,8 @@ import { ArrowLeft, Download, FullScreen, View, Printer } from '@element-plus/ic
 import html2canvas from "html2canvas"
 import { jsPDF } from "jspdf"
 import axios from 'axios'
-import { extractEditorFonts, parseFontSize } from '../../utils/fonts.js'
+import { normalizeCitationMarker, normalizeCitationTagsHtml, stripLeadingCitationMarker } from '../../utils/citation.js'
+import { extractEditorFonts, parseFontSize, resolveConfigFont } from '../../utils/fonts.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,8 +58,65 @@ const headingFontStyles = computed(() => {
   if (body) style['--pv-body-size'] = body + 'pt'
   if (fonts.bodyFont) style['--pv-body-font'] = fonts.bodyFont
 
+  const refCfg = cfg?.references
+  const refTitleFont = resolveConfigFont(refCfg)
+  const refBodyFont = resolveConfigFont(refCfg)
+  const refTitleSize = parseFontSize(refCfg?.titleFontSize)
+  const refBodySize = parseFontSize(refCfg?.fontSize)
+  const refLineHeight = Number(refCfg?.lineSpacing)
+  const refHangingIndent = Number(refCfg?.hangingIndentSize)
+
+  if (refTitleFont) style['--pv-ref-title-font'] = refTitleFont
+  if (refTitleSize != null) style['--pv-ref-title-size'] = refTitleSize + 'pt'
+  if (refCfg?.titleAlignment) style['--pv-ref-title-align'] = refCfg.titleAlignment
+  if (refBodyFont) style['--pv-ref-font'] = refBodyFont
+  if (refBodySize != null) style['--pv-ref-size'] = refBodySize + 'pt'
+  if (!Number.isNaN(refLineHeight) && refLineHeight > 0) style['--pv-ref-line-height'] = String(refLineHeight)
+  if (!Number.isNaN(refHangingIndent) && refHangingIndent > 0) style['--pv-ref-hanging-indent'] = String(refHangingIndent)
+
   return style
 })
+
+function formatReferenceNumber(index) {
+  const numberFormat = templateFormatConfig.value?.references?.numberFormat || '[N]'
+  return normalizeCitationMarker('', index, numberFormat)
+}
+
+function getReferenceText(ref, index) {
+  return stripLeadingCitationMarker(ref.formattedText || '') || buildRefText(ref, index)
+}
+
+function getRenderedChapterContent(content) {
+  return normalizeCitationTagsHtml(
+    content || '',
+    templateFormatConfig.value?.references?.numberFormat || '[N]'
+  )
+}
+
+function resolveDocxFont(fontName, fallback) {
+  const map = {
+    '宋体': 'SimSun',
+    '黑体': 'SimHei',
+    '楷体': 'KaiTi',
+    '楷体_GB2312': 'KaiTi_GB2312',
+    '仿宋': 'FangSong',
+    '仿宋_GB2312': 'FangSong_GB2312',
+    '微软雅黑': 'Microsoft YaHei',
+  }
+
+  return map[fontName] || fontName || fallback
+}
+
+function resolveDocxAlignment(alignmentType, AlignmentType) {
+  switch (alignmentType) {
+    case 'left':
+      return AlignmentType.LEFT
+    case 'right':
+      return AlignmentType.RIGHT
+    default:
+      return AlignmentType.CENTER
+  }
+}
 
 // ─── 分页状态 ───
 const currentPage = ref(1)
@@ -290,10 +348,10 @@ async function exportDocx() {
       ? templateFormatConfig.value.heading3.fontSize * 2 : 24
     const bodySize = templateFormatConfig.value?.body?.fontSize
       ? templateFormatConfig.value.body.fontSize * 2 : 24
-    const h1Font = templateFormatConfig.value?.heading1?.font || 'SimHei'
-    const h2Font = templateFormatConfig.value?.heading2?.font || 'SimHei'
-    const h3Font = templateFormatConfig.value?.heading3?.font || 'SimHei'
-    const bodyFont = templateFormatConfig.value?.body?.font || 'SimSun'
+    const h1Font = resolveDocxFont(templateFormatConfig.value?.heading1?.font, 'SimHei')
+    const h2Font = resolveDocxFont(templateFormatConfig.value?.heading2?.font, 'SimHei')
+    const h3Font = resolveDocxFont(templateFormatConfig.value?.heading3?.font, 'SimHei')
+    const bodyFont = resolveDocxFont(templateFormatConfig.value?.body?.font, 'SimSun')
 
     for (const ch of tocChapters.value) {
       const headingSize = ch.depth === 1 ? h1Size : ch.depth === 2 ? h2Size : h3Size
@@ -319,17 +377,26 @@ async function exportDocx() {
 
     // ── 参考文献 ──
     if (references.value.length > 0) {
+      const refCfg = templateFormatConfig.value?.references || {}
+      const refTitleSize = parseFontSize(refCfg.titleFontSize)
+      const refBodySize = parseFontSize(refCfg.fontSize)
+      const refLineSpacing = Number(refCfg.lineSpacing) || 1.5
+      const hangingIndentChars = refCfg.hangingIndent === false ? 0 : (Number(refCfg.hangingIndentSize) || 2)
+      const hangingIndent = Math.round(hangingIndentChars * 240)
+      const refTitleFont = resolveDocxFont(refCfg.titleFont, 'SimHei')
+      const refBodyFont = resolveDocxFont(refCfg.font, 'SimSun')
+
       children.push(new Paragraph({
-        alignment: AlignmentType.CENTER, spacing: { before: 400, after: 300 },
-        children: [new TextRun({ text: '参考文献', size: 32, font: 'SimHei', bold: true })]
+        alignment: resolveDocxAlignment(refCfg.titleAlignment, AlignmentType), spacing: { before: 400, after: 300 },
+        children: [new TextRun({ text: '参考文献', size: (refTitleSize || 16) * 2, font: refTitleFont, bold: true })]
       }))
       for (let i = 0; i < references.value.length; i++) {
         const ref = references.value[i]
-        const refText = buildRefText(ref, i + 1)
+        const refText = `${formatReferenceNumber(i + 1)} ${getReferenceText(ref, i + 1)}`
         children.push(new Paragraph({
-          spacing: { before: 30, after: 30 },
-          indent: { left: 360, hanging: 360 },
-          children: [new TextRun({ text: refText, size: 21, font: 'SimSun' })]
+          spacing: { before: 30, after: 30, line: Math.round(refLineSpacing * 240) },
+          indent: hangingIndent > 0 ? { left: hangingIndent, hanging: hangingIndent } : undefined,
+          children: [new TextRun({ text: refText, size: (refBodySize || 10.5) * 2, font: refBodyFont })]
         }))
       }
     }
@@ -574,25 +641,18 @@ function buildRefText(ref, index) {
                      :class="'level-' + (ch.depth || 1)">
             {{ ch.title }}
           </component>
-          <div class="section-text" :class="'body-level-' + (ch.depth || 1)" v-html="ch.content" />
+          <div class="section-text" :class="'body-level-' + (ch.depth || 1)" v-html="getRenderedChapterContent(ch.content)" />
         </div>
 
         <!-- 参考文献 -->
         <div class="page-section" v-if="references.length > 0">
-          <h2 class="section-heading">参考文献</h2>
-          <ol class="ref-list">
-            <li v-for="(ref, i) in references" :key="ref.id || i" class="ref-entry">
-              <span v-if="ref.authors">{{ ref.authors }}. </span>
-              <span v-if="ref.title">《{{ ref.title }}》</span>
-              <span v-if="ref.type">[{{ ref.type === '期刊' ? 'J' : ref.type === '专著' ? 'M' : ref.type === '学位论文' ? 'D' : 'EB/OL' }}]. </span>
-              <span v-if="ref.journal">{{ ref.journal }}</span>
-              <span v-if="ref.year">, {{ ref.year }}</span>
-              <span v-if="ref.volume">, {{ ref.volume }}</span>
-              <span v-if="ref.issue">({{ ref.issue }})</span>
-              <span v-if="ref.pages">: {{ ref.pages }}</span>
-              <span>.</span>
-            </li>
-          </ol>
+          <h2 class="section-heading ref-heading">参考文献</h2>
+          <div class="ref-list">
+            <div v-for="(ref, i) in references" :key="ref.id || i" class="ref-entry">
+              <span class="ref-marker">{{ formatReferenceNumber(i + 1) }}</span>
+              <span>{{ getReferenceText(ref, i + 1) }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- 致谢 -->
@@ -652,21 +712,19 @@ function buildRefText(ref, index) {
                   <component :is="'h' + Math.min(ch.level || 1, 4)" class="chapter-head" :class="'level-' + (ch.depth || 1)">
                     {{ ch.title }}
                   </component>
-                  <div class="section-text" :class="'body-level-' + (ch.depth || 1)" v-html="ch.content" />
+                  <div class="section-text" :class="'body-level-' + (ch.depth || 1)" v-html="getRenderedChapterContent(ch.content)" />
                 </div>
               </template>
             </template>
           </div>
           <div v-else-if="currentPage === tocChapters.length + 4">
-            <h2 class="section-heading">参考文献</h2>
-            <ol class="ref-list">
-              <li v-for="(ref, i) in references" :key="ref.id || i" class="ref-entry">
-                <span v-if="ref.authors">{{ ref.authors }}. </span>
-                <span v-if="ref.title">《{{ ref.title }}》</span>
-                <span v-if="ref.journal">{{ ref.journal }}, </span>
-                <span v-if="ref.year">{{ ref.year }}</span><span v-if="ref.volume">, {{ ref.volume }}</span><span v-if="ref.issue">({{ ref.issue }})</span><span v-if="ref.pages">: {{ ref.pages }}</span><span>.</span>
-              </li>
-            </ol>
+            <h2 class="section-heading ref-heading">参考文献</h2>
+            <div class="ref-list">
+              <div v-for="(ref, i) in references" :key="ref.id || i" class="ref-entry">
+                <span class="ref-marker">{{ formatReferenceNumber(i + 1) }}</span>
+                <span>{{ getReferenceText(ref, i + 1) }}</span>
+              </div>
+            </div>
           </div>
           <div v-else-if="currentPage === tocChapters.length + 5 && acknowledgment">
             <h2 class="section-heading">致  谢</h2>
@@ -802,10 +860,27 @@ h4.chapter-head, .level-4 { font-size: 15px; font-family: SimHei, sans-serif; }
 .toc-dots { flex: 1; border-bottom: 1px dotted #ccc; margin: 0 6px; min-width: 20px; }
 
 /* ═══════ 参考文献 ═══════ */
-.ref-list { padding-left: 1.6em; }
-.ref-entry {
-  font-size: var(--pv-body-size, 10pt); line-height: 1.8; color: #444; margin: 4px 0;
+.ref-heading {
+  font-family: var(--pv-ref-title-font, var(--pv-h1-font, "Noto Serif SC", serif));
+  font-size: var(--pv-ref-title-size, var(--pv-h1-size, 22px));
+  text-align: var(--pv-ref-title-align, center);
 }
+
+.ref-list {
+  font-family: var(--pv-ref-font, var(--pv-body-font, SimSun, serif));
+  font-size: var(--pv-ref-size, 10.5pt);
+  line-height: var(--pv-ref-line-height, 1.5);
+  color: #444;
+}
+
+.ref-entry {
+  display: block;
+  margin: 0.35em 0;
+  padding-left: calc(var(--pv-ref-hanging-indent, 0) * 1em);
+  text-indent: calc(var(--pv-ref-hanging-indent, 0) * -1em);
+}
+
+.ref-marker { white-space: pre; }
 
 .preview-empty { display: flex; justify-content: center; padding: 100px 0; }
 
