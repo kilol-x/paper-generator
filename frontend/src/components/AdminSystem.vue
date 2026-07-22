@@ -759,7 +759,7 @@ onMounted(async () => {
 .admin-head > div { display: flex; gap: 8px; flex-wrap: wrap; }
 .admin-head input { width: 200px; }
 .admin-primary { background: #4f776a; color: #fff; border-color: #4f776a; }
-.admin-primary-inv { color: #fff !important; }
+.admin-primary-inv { background: #a8544d; color: #fff !important; border-color: #a8544d; }
 
 .admin-table { width: 100%; }
 .admin-tr { display: grid; grid-template-columns: 60px 1.2fr 1.5fr 150px 170px; gap: 12px; align-items: center; padding: 13px 18px; border-bottom: 1px solid #eee; }
