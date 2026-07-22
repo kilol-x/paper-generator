@@ -1,5 +1,7 @@
 <script setup>
+import { defineExpose } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
+import { CitationTag } from '../extensions/CitationTag.js'
 import StarterKit from '@tiptap/starter-kit'
 import { ResizableImage } from '../extensions/ResizableImage.js'
 import { Table } from '@tiptap/extension-table'
@@ -36,6 +38,7 @@ const editor = useEditor({
       heading: false       // 章节标题由侧边栏大纲控制，编辑区内不产生 h1-h4
     }),
     Underline,
+    CitationTag,
     TextStyle,         // 文本样式（font-family 的前置依赖）
     FontFamily,        // 字体切换
     ResizableImage.configure({
@@ -106,6 +109,29 @@ function openTableEditor() {
 function onTableInsert(html) {
   editor.value?.chain().focus().insertContent(html).run()
 }
+
+function insertCitationTag(payload) {
+  if (!editor.value || !payload?.marker) {
+    return false
+  }
+
+  return editor.value
+    .chain()
+    .focus()
+    .insertCitationTag({
+      marker: payload.marker,
+      label: payload.displayLabel || payload.marker,
+      referenceId: payload.ref?.id ?? null,
+      citationNo: payload.citationNo ?? payload.ref?.citationNo ?? null,
+      year: payload.ref?.year || ''
+    })
+    .insertContent(' ')
+    .run()
+}
+
+defineExpose({
+  insertCitationTag
+})
 
 // ========== 字体选择 ==========
 const FONT_FAMILIES = [
@@ -668,6 +694,29 @@ const templateFontHint = computed(() => {
 .editor-body :deep(p) {
   margin: 0.5em 0;
   text-align: justify;
+}
+
+.editor-body :deep(.citation-tag-node) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 4px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid #e6b089;
+  background: #fff3e7;
+  color: #9a4f1f;
+  font-size: 0.92em;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(154, 79, 31, 0.08);
+  white-space: nowrap;
+  user-select: all;
+}
+
+.editor-body :deep(.citation-tag-node)::before {
+  content: '⛓';
+  font-size: 0.9em;
+  opacity: 0.72;
 }
 
 /* ---- 图片 ---- */

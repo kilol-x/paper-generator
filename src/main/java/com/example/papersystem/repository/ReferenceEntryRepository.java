@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface ReferenceEntryRepository extends JpaRepository<ReferenceEntry, Long> {
     List<ReferenceEntry> findByPaperIdOrderByCitationNoAscCreatedAtAsc(Long paperId);
+
     long countByPaperId(Long paperId);
 }

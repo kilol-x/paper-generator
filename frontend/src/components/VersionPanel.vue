@@ -10,6 +10,9 @@ const emit = defineEmits(['restore'])
 
 const versions = ref([])
 const loading = ref(false)
+const previewVisible = ref(false)
+const previewLoading = ref(false)
+const previewVersion = ref(null)
 
 async function loadVersions() {
   if (!props.paperId) return
@@ -68,17 +71,45 @@ function onRestoreClick(v) {
     `确定恢复到版本 ${v.versionNo}？当前未保存的修改将被覆盖。`,
     '恢复版本',
     { confirmButtonText: '确定恢复', cancelButtonText: '取消', type: 'warning' }
-  ).then(() => {
+  ).then(async () => {
     try {
-      const snap = typeof v.contentSnapshot === 'string'
-        ? JSON.parse(v.contentSnapshot)
-        : v.contentSnapshot
-      emit('restore', snap)
+      const detail = await loadVersionDetail(v.id)
+      emit('restore', detail.snapshot)
       ElMessage.success('已恢复该版本内容（请手动保存）')
     } catch {
       ElMessage.error('版本数据解析失败')
     }
   }).catch(() => {})
+}
+
+async function loadVersionDetail(versionId) {
+  const res = await request.get(`/api/papers/${props.paperId}/drafts/${versionId}`)
+  return res?.data || res
+}
+
+async function onPreviewClick(v) {
+  previewVisible.value = true
+  previewLoading.value = true
+  previewVersion.value = null
+  try {
+    previewVersion.value = await loadVersionDetail(v.id)
+  } catch (err) {
+    ElMessage.error(err?.response?.data?.message || '读取历史版本失败')
+    previewVisible.value = false
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+function previewSections(snapshot) {
+  if (!Array.isArray(snapshot?.sections)) {
+    return []
+  }
+  return snapshot.sections.filter(section => !section.type || section.type === 'chapter')
+}
+
+function previewReferences(snapshot) {
+  return Array.isArray(snapshot?.references) ? snapshot.references : []
 }
 
 watch(() => props.paperId, () => {
@@ -116,8 +147,54 @@ onMounted(loadVersions)
         <el-button size="small" text type="primary" @click="onRestoreClick(v)">
           恢复
         </el-button>
+        <el-button size="small" text @click="onPreviewClick(v)">
+          查看
+        </el-button>
       </div>
     </div>
+
+    <el-dialog v-model="previewVisible" width="760px" destroy-on-close>
+      <template #header>
+        <div class="preview-header">
+          <strong>历史版本详情</strong>
+          <span v-if="previewVersion" class="preview-meta">V{{ previewVersion.versionNo }} · {{ actionLabel(previewVersion.action) }} · {{ fmtTime(previewVersion.createdAt) }}</span>
+        </div>
+      </template>
+
+      <div v-loading="previewLoading" class="preview-body">
+        <template v-if="previewVersion">
+          <p class="preview-desc">{{ previewVersion.description || '无版本说明' }}</p>
+
+          <section class="preview-block">
+            <div class="preview-block-head">
+              <h4>正文结构</h4>
+              <span>{{ previewSections(previewVersion.snapshot).length }} 节</span>
+            </div>
+            <div v-if="previewSections(previewVersion.snapshot).length === 0" class="preview-empty">该版本没有正文快照</div>
+            <div v-else class="preview-sections">
+              <div v-for="section in previewSections(previewVersion.snapshot)" :key="section.id || section.title" class="preview-section-item">
+                <strong>{{ section.title || '未命名章节' }}</strong>
+                <p>{{ (section.content || '').replace(/<[^>]+>/g, '').trim() || '该章节无正文内容' }}</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="preview-block">
+            <div class="preview-block-head">
+              <h4>参考文献</h4>
+              <span>{{ previewReferences(previewVersion.snapshot).length }} 条</span>
+            </div>
+            <div v-if="previewReferences(previewVersion.snapshot).length === 0" class="preview-empty">该版本没有保存参考文献</div>
+            <div v-else class="preview-references">
+              <div v-for="ref in previewReferences(previewVersion.snapshot)" :key="ref.id || `${ref.citationNo}-${ref.title}`" class="preview-reference-item">
+                <span class="preview-reference-no">[{{ ref.citationNo || '?' }}]</span>
+                <span>{{ ref.formattedText || [ref.authors, ref.title, ref.journal, ref.year].filter(Boolean).join(' / ') }}</span>
+              </div>
+            </div>
+          </section>
+        </template>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -140,4 +217,19 @@ onMounted(loadVersions)
 .ver-action { color: var(--text-main); font-weight: 500; }
 .ver-time { color: var(--text-dim); font-size: 11px; margin-left: auto; }
 .ver-desc { color: var(--text-mute); font-size: 12px; margin-top: 3px; }
+.preview-header { display: flex; flex-direction: column; gap: 6px; }
+.preview-meta { font-size: 12px; color: var(--text-dim); }
+.preview-body { min-height: 220px; }
+.preview-desc { margin: 0 0 16px; color: var(--text-main); line-height: 1.7; }
+.preview-block { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-top: 14px; }
+.preview-block-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.preview-block-head h4 { margin: 0; font-size: 14px; color: var(--text-main); }
+.preview-block-head span { font-size: 12px; color: var(--text-dim); }
+.preview-empty { font-size: 12px; color: var(--text-dim); }
+.preview-sections, .preview-references { display: flex; flex-direction: column; gap: 10px; }
+.preview-section-item { padding: 10px 12px; border-radius: 8px; background: var(--bg-page); }
+.preview-section-item strong { display: block; margin-bottom: 6px; color: var(--text-main); }
+.preview-section-item p { margin: 0; font-size: 12px; line-height: 1.7; color: var(--text-mute); white-space: pre-wrap; }
+.preview-reference-item { display: flex; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--bg-page); }
+.preview-reference-no { color: var(--primary); font-weight: 600; }
 </style>

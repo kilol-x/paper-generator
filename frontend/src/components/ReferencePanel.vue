@@ -17,8 +17,29 @@ watch(() => props.paperId, () => {
   loadRefs()
 }, { immediate: true })
 
+watch(() => props.modelValue, (value) => {
+  const normalized = normalizeRefs(value)
+  if (JSON.stringify(normalized) !== JSON.stringify(refs.value)) {
+    refs.value = normalized
+  }
+}, { deep: true, immediate: true })
+
 function emitChange() {
   emit('update:modelValue', [...refs.value])
+}
+
+function normalizeRefs(list) {
+  if (!Array.isArray(list)) {
+    return []
+  }
+  return list.map(item => ({
+    ...item,
+    authors: item.authors || '',
+    title: item.title || '',
+    journal: item.journal || '',
+    year: item.year || '',
+    pages: item.pages || ''
+  }))
 }
 
 // 表单对话框
@@ -82,8 +103,8 @@ async function saveRef() {
     ElMessage.warning('请先保存论文，再录入参考文献')
     return
   }
-  if (!form.authors.trim() || !form.title.trim() || !form.journal.trim() || !form.year.trim()) {
-    ElMessage.warning('作者、标题、发表刊物、出版年份为必填项')
+  if (![form.authors, form.title, form.journal, form.year, form.pages].some(value => value.trim())) {
+    ElMessage.warning('请至少填写一项文献信息')
     return
   }
 
@@ -129,7 +150,12 @@ async function citeRef(item) {
   try {
     const res = await request.get(`/api/papers/${props.paperId}/references/${item.id}/marker`)
     const marker = res?.data?.marker || `[${item.citationNo}]`
-    emit('cite', { marker, ref: item })
+    emit('cite', {
+      marker,
+      displayLabel: res?.data?.displayLabel || (item.year ? `${item.citationNo} (${item.year})` : String(item.citationNo)),
+      citationNo: item.citationNo,
+      ref: item
+    })
   } catch {
     ElMessage.error('获取引用标注失败')
   }
@@ -139,7 +165,10 @@ async function citeRef(item) {
 <template>
   <div class="ref-panel" v-loading="loading">
     <div class="ref-header">
-      <h3 class="panel-title">参考文献</h3>
+      <div>
+        <h3 class="panel-title">参考文献</h3>
+        <p class="panel-tip">文献信息支持分步录入，至少填写一项即可保存；正文中可插入引用书签。</p>
+      </div>
       <el-button type="primary" size="small" :icon="Plus" @click="openAdd">添加文献</el-button>
     </div>
 
@@ -171,13 +200,13 @@ async function citeRef(item) {
           <el-form-item label="作者">
             <el-input v-model="form.authors" placeholder="张三, 李四" />
           </el-form-item>
-          <el-form-item label="标题" required>
+          <el-form-item label="标题">
             <el-input v-model="form.title" placeholder="论文或专著标题" />
           </el-form-item>
-          <el-form-item label="刊物" required>
+          <el-form-item label="刊物">
             <el-input v-model="form.journal" placeholder="发表刊物名称" />
           </el-form-item>
-          <el-form-item label="年份" required>
+          <el-form-item label="年份">
             <el-input v-model="form.year" placeholder="2024" />
           </el-form-item>
           <el-form-item label="页码">
@@ -197,6 +226,7 @@ async function citeRef(item) {
 .ref-panel { padding: 20px 24px; }
 .ref-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .panel-title { font-family: var(--font-heading); font-size: 17px; margin: 0; color: var(--text-main); }
+.panel-tip { margin: 6px 0 0; font-size: 12px; color: var(--text-dim); }
 .ref-empty { text-align: center; color: var(--text-dim); padding: 40px 0; font-size: 13px; }
 .ref-list { display: flex; flex-direction: column; gap: 4px; }
 .ref-item {

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +59,7 @@ public class ReferenceController {
 
         ReferenceEntry entry = parseBody(body, new ReferenceEntry());
         if (entry == null) {
-            return Result.error(400, "作者、标题、发表刊物和出版年份不能为空");
+            return Result.error(400, "请至少填写一项文献信息");
         }
         entry.setPaperId(paperId);
         entry.setCitationNo(referenceEntryRepository.findByPaperIdOrderByCitationNoAscCreatedAtAsc(paperId).size() + 1);
@@ -68,8 +69,8 @@ public class ReferenceController {
 
     @PutMapping("/{referenceId}")
     public Result<ReferenceEntry> update(@PathVariable Long paperId,
-                                         @PathVariable Long referenceId,
-                                         @RequestBody Map<String, Object> body) {
+            @PathVariable Long referenceId,
+            @RequestBody Map<String, Object> body) {
         Result<Void> accessResult = checkAccess(paperId);
         if (accessResult != null) {
             return Result.error(accessResult.getCode(), accessResult.getMessage());
@@ -81,7 +82,7 @@ public class ReferenceController {
 
         ReferenceEntry parsed = parseBody(body, existing);
         if (parsed == null) {
-            return Result.error(400, "作者、标题、发表刊物和出版年份不能为空");
+            return Result.error(400, "请至少填写一项文献信息");
         }
         parsed.setFormattedText(formatReference(parsed));
         return Result.success("更新成功", referenceEntryRepository.save(parsed));
@@ -149,8 +150,9 @@ public class ReferenceController {
         String title = str(body.get("title"));
         String journal = str(body.get("journal"));
         String year = str(body.get("year"));
+        String pages = str(body.get("pages"));
 
-        if (authors.isBlank() || title.isBlank() || journal.isBlank() || year.isBlank()) {
+        if (authors.isBlank() && title.isBlank() && journal.isBlank() && year.isBlank() && pages.isBlank()) {
             return null;
         }
 
@@ -158,7 +160,7 @@ public class ReferenceController {
         target.setTitle(title);
         target.setJournal(journal);
         target.setYear(year);
-        target.setPages(str(body.get("pages")));
+        target.setPages(pages);
         return target;
     }
 
@@ -177,19 +179,38 @@ public class ReferenceController {
     }
 
     private String formatReference(ReferenceEntry entry) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("[").append(entry.getCitationNo()).append("] ")
-                .append(entry.getAuthors())
-                .append(". ")
-                .append(entry.getTitle())
-                .append("[J]. ")
-                .append(entry.getJournal())
-                .append(", ")
-                .append(entry.getYear());
-        if (!str(entry.getPages()).isBlank()) {
-            sb.append(": ").append(entry.getPages());
+        List<String> segments = new ArrayList<>();
+        if (!str(entry.getAuthors()).isBlank()) {
+            segments.add(entry.getAuthors());
         }
-        sb.append(".");
-        return sb.toString();
+        if (!str(entry.getTitle()).isBlank()) {
+            segments.add(entry.getTitle());
+        }
+
+        StringBuilder publication = new StringBuilder();
+        if (!str(entry.getJournal()).isBlank()) {
+            publication.append(entry.getJournal());
+        }
+        if (!str(entry.getYear()).isBlank()) {
+            if (publication.length() > 0) {
+                publication.append(", ");
+            }
+            publication.append(entry.getYear());
+        }
+        if (!str(entry.getPages()).isBlank()) {
+            if (publication.length() > 0) {
+                publication.append(": ");
+            }
+            publication.append(entry.getPages());
+        }
+        if (publication.length() > 0) {
+            segments.add(publication.toString());
+        }
+
+        String text = segments.isEmpty() ? "未命名文献" : String.join(". ", segments);
+        if (!text.endsWith(".")) {
+            text = text + ".";
+        }
+        return "[" + entry.getCitationNo() + "] " + text;
     }
 }

@@ -40,6 +40,10 @@ const loading = ref(false)
 const dirty = ref(false)
 const sidebarCollapsed = ref(false)
 const sidebarTab = ref('outline') // 'outline' | 'versions'
+const chapterEditorRef = ref(null)
+const lastActiveChapterId = ref(null)
+const showCitationPicker = ref(false)
+const referenceWorkspaceOpen = ref(true)
 
 // 模板状态
 const currentTemplateId = ref(null)
@@ -142,6 +146,18 @@ const referencesData = computed({
 // 仅章节部分（用于大纲树）
 const chaptersOnly = computed(() =>
   sections.value.filter(s => !s.type || s.type === 'chapter')
+)
+
+const citationCandidates = computed(() =>
+  referencesData.value.map((ref, index) => {
+    const citationNo = ref.citationNo || index + 1
+    return {
+      ...ref,
+      citationNo,
+      marker: `[${citationNo}]`,
+      displayLabel: ref.year ? `${citationNo} (${ref.year})` : String(citationNo)
+    }
+  })
 )
 
 // ==================== 特殊章节工具 ====================
@@ -350,6 +366,12 @@ function onContentChange(html) {
   }
 }
 
+watch(activeSection, section => {
+  if (section && (!section.type || section.type === 'chapter')) {
+    lastActiveChapterId.value = section.id
+  }
+}, { immediate: true })
+
 function onAcknowledgmentChange(html) {
   const s = sections.value.find(s => s.id === 'meta-acknowledgment')
   if (s) { s.content = html; dirty.value = true }
@@ -372,6 +394,16 @@ async function savePaper({ mode = 'MANUAL_SAVE', silent = false } = {}) {
         id: s.id, title: s.title, content: s.content,
         type: s.type, level: s.level, parentId: s.parentId,
         sortOrder: s.sortOrder
+      })),
+      references: referencesData.value.map(ref => ({
+        id: ref.id,
+        authors: ref.authors || '',
+        title: ref.title || '',
+        journal: ref.journal || '',
+        year: ref.year || '',
+        pages: ref.pages || '',
+        citationNo: ref.citationNo || undefined,
+        formattedText: ref.formattedText || ''
       })),
       saveMode: mode,
       templateId: currentTemplateId.value || undefined,
@@ -457,6 +489,9 @@ async function loadPaper() {
     paperTitle.value = data.title || '未命名论文'
     sections.value = data.sections || []
     ensureSpecialSections()
+    if (Array.isArray(data.references)) {
+      referencesData.value = data.references
+    }
 
     // 读取模板信息
     if (data.templateId) currentTemplateId.value = data.templateId
@@ -639,25 +674,88 @@ function handleLogout() {
 
 // 版本恢复回调
 function onRestoreVersion(snapshot) {
-  if (Array.isArray(snapshot)) {
-    sections.value = snapshot
-    ensureSpecialSections()
-    dirty.value = true
-    ElMessage.success('版本内容已加载，请手动保存')
+  const resolvedSections = Array.isArray(snapshot)
+    ? snapshot
+    : Array.isArray(snapshot?.sections) ? snapshot.sections : null
+
+  if (!resolvedSections) {
+    ElMessage.error('历史版本内容格式不正确')
+    return
+  }
+
+  sections.value = resolvedSections
+  ensureSpecialSections()
+  if (Array.isArray(snapshot?.references)) {
+    referencesData.value = snapshot.references
+  }
+  const firstChapter = chaptersOnly.value[0]
+  activeSectionId.value = firstChapter?.id || 'meta-cover'
+  sidebarTab.value = 'outline'
+  dirty.value = true
+  ElMessage.success('版本内容已加载，请手动保存')
+}
+
+function openCitationPicker() {
+  referenceWorkspaceOpen.value = true
+  if (!citationCandidates.value.length) {
+    ElMessage.warning('请先添加参考文献，再插入引用书签')
+    return
+  }
+  showCitationPicker.value = true
+}
+
+function toggleReferenceWorkspace() {
+  referenceWorkspaceOpen.value = !referenceWorkspaceOpen.value
+}
+
+function buildCitationPayload(reference) {
+  return {
+    marker: reference.marker || `[${reference.citationNo}]`,
+    displayLabel: reference.displayLabel || (reference.year ? `${reference.citationNo} (${reference.year})` : String(reference.citationNo)),
+    citationNo: reference.citationNo,
+    ref: reference
   }
 }
 
-function onReferenceCite(payload) {
+function insertCitationIntoEditor(payload) {
+  const inserted = chapterEditorRef.value?.insertCitationTag?.(payload)
+  if (!inserted) {
+    ElMessage.warning('请先将光标定位到正文编辑区，再插入引用书签')
+    return false
+  }
+  dirty.value = true
+  return true
+}
+
+function onCitationPicked(reference) {
+  if (insertCitationIntoEditor(buildCitationPayload(reference))) {
+    showCitationPicker.value = false
+    ElMessage.success(`已插入引用 ${reference.marker || `[${reference.citationNo}]`}`)
+  }
+}
+
+async function onReferenceCite(payload) {
   if (!payload?.marker) {
     return
   }
-  if (!activeSection.value || activeSection.value.type !== 'chapter') {
-    ElMessage.warning('请先在左侧选择一个正文章节，再插入引用标注')
+
+  const targetChapterId = activeSection.value?.type === 'chapter'
+    ? activeSection.value.id
+    : lastActiveChapterId.value
+
+  if (!targetChapterId) {
+    ElMessage.warning('请先进入一个正文章节，再插入引用书签')
     return
   }
-  activeSection.value.content = `${activeSection.value.content || ''}<sup>${payload.marker}</sup>`
-  dirty.value = true
-  ElMessage.success(`已插入引用 ${payload.marker}`)
+
+  if (activeSectionId.value !== targetChapterId) {
+    activeSectionId.value = targetChapterId
+    await nextTick()
+  }
+
+  if (insertCitationIntoEditor(payload)) {
+    ElMessage.success(`已插入引用 ${payload.marker}`)
+  }
 }
 </script>
 
@@ -825,19 +923,45 @@ function onReferenceCite(payload) {
 
         <!-- 普通章节编辑器 -->
         <template v-else-if="activeSection && (!activeSection.type || activeSection.type === 'chapter')">
-          <PaperEditor
-            :key="activeSection.id"
-            :model-value="activeSection.content"
-            :placeholder="`撰写「${activeSection.title}」内容…`"
-            :format-config="editorFormatConfig"
-            section-type="chapter"
-            :heading-level="activeSection.level || 0"
-            @update:model-value="onContentChange"
-          />
-          <!-- 引用提示 -->
-          <div v-if="referencesData.length > 0" class="ref-hint">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5C8.26 12.26 8.73 13.02 8.91 14"/></svg>
-            引用文献时，可在文中使用 <code>[1]</code> <code>[2]</code> 等标记对应参考文献序号
+          <div class="chapter-workspace" :class="{ 'reference-collapsed': !referenceWorkspaceOpen }">
+            <section class="chapter-main">
+              <PaperEditor
+                ref="chapterEditorRef"
+                :key="activeSection.id"
+                :model-value="activeSection.content"
+                :placeholder="`撰写「${activeSection.title}」内容…`"
+                :format-config="editorFormatConfig"
+                section-type="chapter"
+                :heading-level="activeSection.level || 0"
+                @update:model-value="onContentChange"
+              />
+              <div class="citation-toolbar">
+                <div class="citation-toolbar__info">
+                  <strong>正文引用</strong>
+                  <span>正文与参考文献现已支持同页协同修改。先在正文里定位光标，再从右侧直接新增、编辑或引用文献。</span>
+                </div>
+                <div class="citation-toolbar__actions">
+                  <el-button size="small" @click="toggleReferenceWorkspace">
+                    {{ referenceWorkspaceOpen ? '收起文献面板' : '展开文献面板' }}
+                  </el-button>
+                  <el-button size="small" type="primary" plain @click="openCitationPicker">
+                    插入引用书签
+                  </el-button>
+                </div>
+              </div>
+              <div v-if="referencesData.length > 0" class="ref-hint">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5C8.26 12.26 8.73 13.02 8.91 14"/></svg>
+                点击右侧“引用”后，书签会回到当前正文编辑器；文献内容也可不离开章节页直接维护。
+              </div>
+            </section>
+
+            <aside v-if="referenceWorkspaceOpen" class="chapter-reference-side panel-wrapper">
+              <ReferencePanel
+                :paper-id="paperId"
+                v-model="referencesData"
+                @cite="onReferenceCite"
+              />
+            </aside>
           </div>
         </template>
 
@@ -853,6 +977,23 @@ function onReferenceCite(payload) {
       v-model="showChangeTplPicker"
       @confirm="onTemplateChanged"
     />
+
+    <el-dialog v-model="showCitationPicker" title="插入引用书签" width="620px" destroy-on-close>
+      <div class="citation-picker">
+        <div v-if="citationCandidates.length === 0" class="citation-picker__empty">
+          暂无可引用的参考文献
+        </div>
+        <button
+          v-for="reference in citationCandidates"
+          :key="reference.id || reference.citationNo"
+          class="citation-picker__item"
+          @click="onCitationPicked(reference)"
+        >
+          <span class="citation-picker__badge">{{ reference.displayLabel }}</span>
+          <span class="citation-picker__text">{{ reference.formattedText || [reference.authors, reference.title, reference.journal, reference.year].filter(Boolean).join(' / ') || '未命名文献' }}</span>
+        </button>
+      </div>
+    </el-dialog>
 
     <!-- 层级选择弹出层 -->
     <Teleport to="body">
@@ -1129,6 +1270,37 @@ function onReferenceCite(payload) {
   border-radius: var(--r-lg); color: var(--text-dim);
 }
 
+.chapter-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+}
+
+.chapter-workspace.reference-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.chapter-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chapter-reference-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chapter-reference-side :deep(.ref-panel) {
+  height: 100%;
+  overflow-y: auto;
+}
+
 .ref-hint {
   padding: 8px 14px; font-size: 12px; color: var(--text-dim);
   background: #fdf6e8; border-radius: 6px; margin-top: 6px;
@@ -1138,11 +1310,98 @@ function onReferenceCite(payload) {
   padding: 1px 5px; border-radius: 3px; font-size: 11px;
 }
 
+.citation-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+.citation-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.citation-toolbar__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.citation-toolbar__info strong {
+  color: var(--text-main);
+  font-size: 13px;
+}
+
+.citation-toolbar__info span {
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.citation-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.citation-picker__empty {
+  padding: 28px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.citation-picker__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: all .15s ease;
+}
+
+.citation-picker__item:hover {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+}
+
+.citation-picker__badge {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff3e7;
+  border: 1px solid #e6b089;
+  color: #9a4f1f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.citation-picker__text {
+  color: var(--text-main);
+  line-height: 1.7;
+  font-size: 13px;
+}
+
 /* ========== 响应式 ========== */
 @media (max-width: 1024px) {
   .sidebar { width: 250px; min-width: 250px; }
   .sidebar.collapsed { margin-left: -250px; }
   .editor-area { padding: 12px 14px 18px; }
+  .chapter-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 720px) {
@@ -1151,6 +1410,13 @@ function onReferenceCite(payload) {
     box-shadow: var(--shadow-lg);
   }
   .save-status { display: none; }
+  .citation-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .citation-toolbar__actions {
+    justify-content: flex-end;
+  }
 }
 </style>
 
