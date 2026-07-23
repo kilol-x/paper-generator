@@ -361,17 +361,9 @@ async function exportDocx() {
         spacing: { before: 200, after: 150 },
         children: [new TextRun({ text: ch.title, size: headingSize, font: headingFont, bold: true })]
       }))
-      if (ch.content) {
-        const cleanText = stripHtml(ch.content).trim()
-        if (cleanText) {
-          const paragraphs = cleanText.split(/`n+/).filter(p => p.trim())
-          for (const p of paragraphs) {
-            children.push(new Paragraph({
-              spacing: { after: 60 }, indent: { firstLine: 480 },
-              children: [new TextRun({ text: p.trim(), size: bodySize, font: bodyFont })]
-            }))
-          }
-        }
+      if (ch.content && ch.content.trim()) {
+        const parsed = htmlToDocxContent(ch.content, bodySize, bodyFont)
+        for (const el of parsed) children.push(el)
       }
     }
 
@@ -506,6 +498,62 @@ async function exportPdf() {
 function handlePrint() {
   window.print()
 }
+
+/**
+ * 解析包含 HTML 标签（表格、图片、段落）的内容为 docx 元素数组
+ */
+function htmlToDocxContent(html, fontSize, fontName) {
+  const elements = []
+  if (!html || !html.trim()) return elements
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, "text/html")
+  const body = doc.body
+  function processNode(node) {
+    if (node.nodeType === 3) {
+      const t = node.textContent.trim()
+      if (t) elements.push(new Paragraph({ spacing: { after: 60 }, indent: { firstLine: 480 }, children: [new TextRun({ text: t, size: fontSize, font: fontName })] }))
+      return
+    }
+    if (node.nodeType !== 1) return
+    const tag = node.tagName.toLowerCase()
+    if (tag === "table") {
+      const rows = []
+      for (const tr of node.querySelectorAll("tr")) {
+        const cells = []
+        for (const td of tr.querySelectorAll("td, th")) {
+          const isTh = td.tagName === "TH"
+          cells.push(new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: td.textContent.trim(), size: fontSize, font: fontName, bold: isTh })] })],
+            borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } }
+          }))
+        }
+        if (cells.length) rows.push(new TableRow({ children: cells }))
+      }
+      if (rows.length) { elements.push(new Table({ rows })); elements.push(new Paragraph({ spacing: { after: 120 }, children: [] })) }
+    } else if (tag === "img") {
+      const src = node.getAttribute("src") || ""
+      if (src.startsWith("data:")) {
+        try {
+          const w = parseInt(node.getAttribute("width")) || 400, h = parseInt(node.getAttribute("height")) || 300
+          elements.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ data: src, transformation: { width: Math.min(w, 500), height: Math.min(h, 400) } })] }))
+        } catch (e) {}
+      } else {
+        elements.push(new Paragraph({ children: [new TextRun({ text: "[image]", size: fontSize, font: fontName })] }))
+      }
+    } else if (["h1","h2","h3","h4","h5","h6"].indexOf(tag) >= 0) {
+      elements.push(new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: node.textContent.trim(), size: fontSize * 2, font: "SimHei", bold: true })] }))
+    } else {
+      for (const child of node.childNodes) processNode(child)
+    }
+  }
+  for (const child of body.childNodes) processNode(child)
+  if (elements.length === 0) {
+    const t = body.textContent.trim()
+    if (t) elements.push(new Paragraph({ spacing: { after: 60 }, indent: { firstLine: 480 }, children: [new TextRun({ text: t, size: fontSize, font: fontName })] }))
+  }
+  return elements
+}
+
 function stripHtml(html) {
   let text = html.replace(/<[^>]*>/g, '')
   text = text.replace(/&nbsp;/g, ' ')
