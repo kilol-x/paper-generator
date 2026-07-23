@@ -237,7 +237,7 @@ async function exportDocx() {
     const { Document, Packer, Paragraph, TextRun, HeadingLevel,
             AlignmentType, PageBreak, Header, Footer,
             PageNumber, Table, TableRow, TableCell,
-            WidthType, BorderStyle, ImageRun, ExternalHyperlink } = await import('docx')
+            WidthType, BorderStyle, ImageRun, ExternalHyperlink, UnderlineType } = await import('docx')
 
     // 构建文档内容
     const children = []
@@ -362,7 +362,7 @@ async function exportDocx() {
         children: [new TextRun({ text: ch.title, size: headingSize, font: headingFont, bold: true })]
       }))
       if (ch.content && ch.content.trim()) {
-        const parsed = htmlToDocxContent(ch.content, bodySize, bodyFont, { Paragraph:Paragraph, TextRun:TextRun, Table:Table, TableRow:TableRow, TableCell:TableCell, BorderStyle:BorderStyle, ImageRun:ImageRun, AlignmentType:AlignmentType })
+        const parsed = htmlToDocxContent(ch.content, bodySize, bodyFont, { Paragraph:Paragraph, TextRun:TextRun, Table:Table, TableRow:TableRow, TableCell:TableCell, BorderStyle:BorderStyle, ImageRun:ImageRun, AlignmentType:AlignmentType, UnderlineType:UnderlineType })
         for (const el of parsed) children.push(el)
       }
     }
@@ -519,12 +519,49 @@ function handlePrint() {
  * 解析包含 HTML 标签（表格、图片、段落）的内容为 docx 元素数组
  */
 function htmlToDocxContent(html, fontSize, fontName, D) {
-  const { Paragraph, TextRun, Table, TableRow, TableCell, BorderStyle, ImageRun, AlignmentType } = D
+  const { Paragraph, TextRun, Table, TableRow, TableCell, BorderStyle, ImageRun, AlignmentType, UnderlineType } = D
   const elements = []
   if (!html || !html.trim()) return elements
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, "text/html")
   const body = doc.body
+
+  // 收集一个段落内的所有 TextRun（处理加粗、上标等内联元素）
+  function collectTextRuns(node, runs, opts) {
+    if (node.nodeType === 3) {
+      const t = node.textContent.replace(/\s+/g, " ").trim()
+      if (t) runs.push(new TextRun({ text: t, size: opts.fs, font: opts.fn, bold: opts.b, italics: opts.i, superScript: opts.sup, subScript: opts.sub }))
+      return
+    }
+    if (node.nodeType !== 1) return
+    const t = node.tagName.toLowerCase()
+    if (t === "sup") { collectTextRunsChildren(node, runs, { ...opts, sup: true }) }
+    else if (t === "sub") { collectTextRunsChildren(node, runs, { ...opts, sub: true }) }
+    else if (["strong","b"].includes(t)) { collectTextRunsChildren(node, runs, { ...opts, b: true }) }
+    else if (["em","i"].includes(t)) { collectTextRunsChildren(node, runs, { ...opts, i: true }) }
+    else if (["u","ins"].includes(t)) {
+      // 下划线特殊处理：先收集文本再添加下划线
+      const subRuns = []; collectTextRunsChildren(node, subRuns, { ...opts, fs: opts.fs, fn: opts.fn })
+      for (const r of subRuns) {
+        if (r instanceof TextRun) {
+          runs.push(new TextRun({ text: r.text, size: opts.fs, font: opts.fn, bold: opts.b, italics: opts.i, underline: { type: UnderlineType.SINGLE } }))
+        }
+      }
+    }
+    else if (t === "span") {
+      const style = node.getAttribute("style") || ""
+      const m = style.match(/font-family:\s*([^;]+)/)
+      const spanFont = m ? m[1].replace(/["']/g, "").trim() : opts.fn
+      const sizeMatch = style.match(/font-size:\s*([\d.]+)(px|pt)/)
+      const spanSize = sizeMatch ? Math.round(parseFloat(sizeMatch[1]) * (sizeMatch[2] === "px" ? 0.75 : 1) * 2) : opts.fs
+      collectTextRunsChildren(node, runs, { ...opts, fn: spanFont, fs: spanSize })
+    }
+    else { collectTextRunsChildren(node, runs, opts) }
+  }
+  function collectTextRunsChildren(node, runs, opts) {
+    for (const ch of node.childNodes) collectTextRuns(ch, runs, opts)
+  }
+
   function processNode(node) {
     if (node.nodeType === 3) {
       const t = node.textContent.trim()
@@ -533,20 +570,31 @@ function htmlToDocxContent(html, fontSize, fontName, D) {
     }
     if (node.nodeType !== 1) return
     const tag = node.tagName.toLowerCase()
-    if (tag === "table") {
+
+    if (tag === "p" || tag === "div") {
+      const runs = []
+      collectTextRunsChildren(node, runs, { fs: fontSize, fn: fontName, b: false, i: false, sup: false, sub: false })
+      if (runs.length > 0) {
+        elements.push(new Paragraph({ spacing: { after: 60 }, indent: { firstLine: 480 }, children: runs }))
+      }
+
+    } else if (tag === "table") {
       const rows = []
       for (const tr of node.querySelectorAll("tr")) {
         const cells = []
         for (const td of tr.querySelectorAll("td, th")) {
           const isTh = td.tagName === "TH"
+          const runs = []
+          collectTextRunsChildren(td, runs, { fs: fontSize, fn: fontName, b: isTh, i: false, sup: false, sub: false })
           cells.push(new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: td.textContent.trim(), size: fontSize, font: fontName, bold: isTh })] })],
+            children: [new Paragraph({ children: runs.length ? runs : [new TextRun("")] })],
             borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } }
           }))
         }
         if (cells.length) rows.push(new TableRow({ children: cells }))
       }
       if (rows.length) { elements.push(new Table({ rows })); elements.push(new Paragraph({ spacing: { after: 120 }, children: [] })) }
+
     } else if (tag === "img") {
       const src = node.getAttribute("src") || ""
       if (src.startsWith("data:")) {
@@ -557,12 +605,21 @@ function htmlToDocxContent(html, fontSize, fontName, D) {
       } else {
         elements.push(new Paragraph({ children: [new TextRun({ text: "[image]", size: fontSize, font: fontName })] }))
       }
+
     } else if (["h1","h2","h3","h4","h5","h6"].indexOf(tag) >= 0) {
       elements.push(new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: node.textContent.trim(), size: fontSize * 2, font: "SimHei", bold: true })] }))
+
+    } else if (["ul","ol"].indexOf(tag) >= 0) {
+      for (const li of node.querySelectorAll("li")) {
+        const runs = []
+        collectTextRunsChildren(li, runs, { fs: fontSize, fn: fontName, b: false, i: false, sup: false, sub: false })
+        elements.push(new Paragraph({ spacing: { after: 40 }, indent: { left: 480 }, children: [new TextRun({ text: "\u2022 ", size: fontSize, font: fontName }), ...runs] }))
+      }
     } else {
       for (const child of node.childNodes) processNode(child)
     }
   }
+
   for (const child of body.childNodes) processNode(child)
   if (elements.length === 0) {
     const t = body.textContent.trim()
