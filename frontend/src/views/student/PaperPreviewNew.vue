@@ -362,7 +362,7 @@ async function exportDocx() {
         children: [new TextRun({ text: ch.title, size: headingSize, font: headingFont, bold: true })]
       }))
       if (ch.content && ch.content.trim()) {
-        const parsed = htmlToDocxContent(ch.content, bodySize, bodyFont)
+        const parsed = htmlToDocxContent(ch.content, bodySize, bodyFont, { Paragraph:Paragraph, TextRun:TextRun, Table:Table, TableRow:TableRow, TableCell:TableCell, BorderStyle:BorderStyle, ImageRun:ImageRun, AlignmentType:AlignmentType })
         for (const el of parsed) children.push(el)
       }
     }
@@ -457,30 +457,46 @@ async function exportDocx() {
 async function exportPdf() {
   try {
     ElMessage.info('正在生成 PDF...')
-    const element = document.querySelector('.paper-a4')
-    if (!element) {
-      ElMessage.error('未找到论文内容')
-      return
-    }
-    const canvas = await html2canvas(element, {
-      scale: 2, useCORS: true, logging: false,
-      width: element.scrollWidth,
-      height: element.scrollHeight
-    })
-    const imgData = canvas.toDataURL('image/jpeg', 0.95)
+    const container = document.querySelector('.paper-a4')
+    if (!container) { ElMessage.error('未找到论文内容'); return }
+
+    // 逐个截取每个分段元素，按段分页避免跨页断字
+    const pages = container.querySelectorAll('.page-section, .section-page')
+    if (!pages.length) { ElMessage.error('未找到论文段落'); return }
+
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pdfW = 210
-    const pdfH = (canvas.height * pdfW) / canvas.width
-    let remain = pdfH
-    let pos = 0
-    pdf.addImage(imgData, 'JPEG', 0, pos, pdfW, pdfH)
-    remain -= 297
-    while (remain > 0) {
-      pos -= 297
-      pdf.addPage()
-      pdf.addImage(imgData, 'JPEG', 0, pos, pdfW, pdfH)
-      remain -= 297
+
+    for (let i = 0; i < pages.length; i++) {
+      const sec = pages[i]
+      if (sec.offsetHeight < 50) continue
+
+      const canvas = await html2canvas(sec, {
+        scale: 2, useCORS: true, logging: false,
+        width: sec.scrollWidth,
+        height: sec.scrollHeight
+      })
+      const imgData = canvas.toDataURL('image/jpeg', 0.95)
+      const imgH = (canvas.height * pdfW) / canvas.width
+      const pageH = 297
+
+      if (i > 0) pdf.addPage()
+
+      if (imgH <= pageH) {
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, imgH)
+      } else {
+        let remain = imgH; let pos = 0
+        pdf.addImage(imgData, 'JPEG', 0, pos, pdfW, imgH)
+        remain -= pageH
+        while (remain > 0) {
+          pos -= pageH
+          pdf.addPage()
+          pdf.addImage(imgData, 'JPEG', 0, pos, pdfW, imgH)
+          remain -= pageH
+        }
+      }
     }
+
     const fn = (paper.value?.title || '论文') + '.pdf'
     pdf.save(fn)
     ElMessage.success('PDF 导出成功')
@@ -502,7 +518,8 @@ function handlePrint() {
 /**
  * 解析包含 HTML 标签（表格、图片、段落）的内容为 docx 元素数组
  */
-function htmlToDocxContent(html, fontSize, fontName) {
+function htmlToDocxContent(html, fontSize, fontName, D) {
+  const { Paragraph, TextRun, Table, TableRow, TableCell, BorderStyle, ImageRun, AlignmentType } = D
   const elements = []
   if (!html || !html.trim()) return elements
   const parser = new DOMParser()
