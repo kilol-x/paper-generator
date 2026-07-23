@@ -85,7 +85,13 @@ async function handleLogin() {
       username: form.username,
       password: form.password
     })
+    
+    // 1. 存储 token
     localStorage.setItem('token', res.data?.token || res.token)
+    
+    // 2. 存储当前登录用户名，供修改密码等功能使用
+    localStorage.setItem('username', form.username)
+    
     ElMessage.success('登录成功')
     const redirect = route.query.redirect || { name: 'Papers' }
     router.push(redirect)

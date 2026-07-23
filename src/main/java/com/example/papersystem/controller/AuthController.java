@@ -82,4 +82,34 @@ public class AuthController {
         data.put("username", user.getUsername());
         return Result.success("登录成功", data);
     }
+    @PostMapping("/updatePassword")
+    public Result<String> updatePassword(@RequestBody Map<String, String> params) {
+        String username = params.get("username");
+        String oldPassword = params.get("oldPassword");
+        String newPassword = params.get("newPassword");
+
+        if (username == null || username.isBlank() || oldPassword == null || oldPassword.isBlank() || newPassword == null || newPassword.isBlank()) {
+            return Result.error(400, "参数不能为空");
+        }
+        if (newPassword.length() < 6) {
+            return Result.error(400, "新密码至少需要6位");
+        }
+
+        Optional<User> opt = userRepository.findByUsername(username.trim());
+        if (opt.isEmpty()) {
+            return Result.error(404, "用户不存在");
+        }
+
+        User user = opt.get();
+        // 校验旧密码（使用 BCrypt 匹配）
+        if (!BCrypt.checkpw(oldPassword, user.getPassword())) {
+            return Result.error(400, "旧密码输入错误");
+        }
+
+        // 加密新密码并保存
+        user.setPassword(BCrypt.hashpw(newPassword, BCrypt.gensalt()));
+        userRepository.save(user);
+
+        return Result.success("修改密码成功", null);
+    }
 }

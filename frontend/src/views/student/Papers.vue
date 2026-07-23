@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Edit, Delete, Document, Upload } from '@element-plus/icons-vue'
+import { Plus, Search, Edit, Delete, Document, Upload, Lock } from '@element-plus/icons-vue'
 import request from '../../api/request'
 import TemplatePickerDialog from '../../components/TemplatePickerDialog.vue'
 
@@ -19,6 +19,15 @@ const filterStatus = ref('')
 
 const showTemplatePicker = ref(false)
 
+// 修改密码相关状态（包含账号输入框，默认尝试从 localStorage 填入刚刚登录的用户名）
+const showPasswordDialog = ref(false)
+const passwordForm = ref({
+  username: localStorage.getItem('username') || '',
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
 const statusOptions = [
   { label: '全部状态', value: '' },
   { label: '草稿', value: 'DRAFT' },
@@ -29,7 +38,7 @@ const statusOptions = [
 ]
 
 const statusMap = {
-  DRAFT:    { label: '草稿',   cls: 's-draft' },
+  DRAFT:    { label: '草稿',    cls: 's-draft' },
   SUBMITTED:{ label: '已提交', cls: 's-submitted' },
   REVIEWING:{ label: '批阅中', cls: 's-reviewing' },
   RETURNED: { label: '已退回', cls: 's-returned' },
@@ -127,6 +136,36 @@ function deletePaper(paper) {
   }).catch(() => {})
 }
 
+// 修改密码提交逻辑
+async function handleUpdatePassword() {
+  if (!passwordForm.value.username || !passwordForm.value.oldPassword || !passwordForm.value.newPassword) {
+    ElMessage.warning('请填写完整的账号、旧密码和新密码')
+    return
+  }
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    ElMessage.error('两次输入的新密码不一致')
+    return
+  }
+  
+  try {
+    const res = await request.post('/api/auth/updatePassword', {
+      username: passwordForm.value.username.trim(),
+      oldPassword: passwordForm.value.oldPassword,
+      newPassword: passwordForm.value.newPassword
+    })
+    
+    if (res.code === 200 || res.success === true) {
+      ElMessage.success('密码修改成功！')
+      showPasswordDialog.value = false
+      passwordForm.value = { username: localStorage.getItem('username') || '', oldPassword: '', newPassword: '', confirmPassword: '' }
+    } else {
+      ElMessage.error(res.message || res.msg || '修改失败')
+    }
+  } catch (err) {
+    ElMessage.error(err.response?.data?.message || err.response?.data?.msg || '修改密码请求失败')
+  }
+}
+
 function onSearch() { currentPage.value = 1; loadPapers() }
 function onStatusChange() { currentPage.value = 1; loadPapers() }
 function onSizeChange(size) { pageSize.value = size; currentPage.value = 1; loadPapers() }
@@ -170,7 +209,10 @@ onMounted(() => loadPapers())
         </el-select>
         <el-button @click="onSearch">搜索</el-button>
       </div>
-      <el-button type="primary" :icon="Plus" @click="createPaper">新建论文</el-button>
+      <div class="toolbar-right" style="display: flex; gap: 10px;">
+        <el-button :icon="Lock" @click="showPasswordDialog = true">修改密码</el-button>
+        <el-button type="primary" :icon="Plus" @click="createPaper">新建论文</el-button>
+      </div>
     </div>
 
     <!-- 表格 -->
@@ -260,6 +302,30 @@ onMounted(() => loadPapers())
       v-model="showTemplatePicker"
       @confirm="onTemplatePicked"
     />
+
+    <!-- 修改密码弹窗 -->
+    <el-dialog v-model="showPasswordDialog" title="修改密码" width="400px" append-to-body>
+      <el-form :model="passwordForm" label-width="80px">
+        <el-form-item label="账号">
+          <el-input v-model="passwordForm.username" placeholder="请输入你的登录账号" />
+        </el-form-item>
+        <el-form-item label="旧密码">
+          <el-input v-model="passwordForm.oldPassword" type="password" placeholder="请输入旧密码" show-password />
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" show-password />
+        </el-form-item>
+        <el-form-item label="确认密码">
+          <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showPasswordDialog = false">取消</el-button>
+          <el-button type="primary" @click="handleUpdatePassword">确认</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
