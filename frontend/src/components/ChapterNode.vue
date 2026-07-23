@@ -48,13 +48,20 @@ function onDragStart(e, id) {
   e.dataTransfer.effectAllowed = 'move'
   e.dataTransfer.setData('text/plain', id)
 }
+function onDragEnd() {
+  dragId.value = null
+}
 function onDragOver(e) {
   e.preventDefault()
   e.dataTransfer.dropEffect = 'move'
 }
+function onDragEnter(e) {
+  e.preventDefault()
+}
 function onDrop(e, targetId) {
   e.preventDefault()
-  const src = dragId.value
+  // 从 dataTransfer 读取源节点 id（dragId 是组件局部 ref，跨越不同 ChapterNode 实例时无法共享）
+  const src = e.dataTransfer.getData('text/plain')
   if (src && src !== targetId) emit('reorder', src, targetId)
   dragId.value = null
 }
@@ -72,7 +79,9 @@ function onDrop(e, targetId) {
       draggable="true"
       @click.stop="emit('select', section.id)"
       @dragstart="onDragStart($event, section.id)"
+      @dragend="onDragEnd"
       @dragover="onDragOver"
+      @dragenter="onDragEnter"
       @drop="onDrop($event, section.id)"
     >
       <!-- 折叠/展开指示器 -->
