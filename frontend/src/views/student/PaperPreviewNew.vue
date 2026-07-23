@@ -572,10 +572,25 @@ function htmlToDocxContent(html, fontSize, fontName, D) {
     const tag = node.tagName.toLowerCase()
 
     if (tag === "p" || tag === "div") {
+      // 提取段落中的图片
+      const childImgs = []
+      for (const ch of node.childNodes) {
+        if (ch.nodeType === 1 && ch.tagName && ch.tagName.toLowerCase() === "img") childImgs.push(ch)
+      }
       const runs = []
       collectTextRunsChildren(node, runs, { fs: fontSize, fn: fontName, b: false, i: false, sup: false, sub: false })
       if (runs.length > 0) {
         elements.push(new Paragraph({ spacing: { after: 60 }, indent: { firstLine: 480 }, children: runs }))
+      }
+      // 嵌入的图片单独输出
+      for (const img of childImgs) {
+        const src = img.getAttribute("src") || ""
+        if (src.startsWith("data:")) {
+          try {
+            const w = parseInt(img.getAttribute("width")) || 400, h = parseInt(img.getAttribute("height")) || 300
+            elements.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ data: src, transformation: { width: Math.min(w, 500), height: Math.min(h, 400) } })] }))
+          } catch (e) {}
+        }
       }
 
     } else if (tag === "table") {
